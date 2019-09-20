@@ -1,4 +1,5 @@
 import dis
+import inspect
 
 from . import constant
 from .vm import VM
@@ -7,7 +8,9 @@ from .. import expression as E
 
 
 def pop_top(vm: VM, _):
-    vm.pop()
+    item = vm.pop()
+    if isinstance(item, E.Expression):
+        vm.add_statement(S.from_expression(item))
 
 
 def rot_two(vm: VM, _):
@@ -34,32 +37,41 @@ def nop(vm: VM, _):
     pass
 
 
-def setup_loop(vm: VM, _):
-    raise NotImplementedError
+def setup_loop(vm: VM, offset: int):
+    from .vm import Block, BlockType
+    block = Block(BlockType.Loop)
+    vm.push_block(block)
 
 
 def setup_except(vm: VM, _):
-    raise NotImplementedError
+    from .vm import Block, BlockType
+    block = Block(BlockType.Except)
+    vm.push_block(block)
 
 
 def setup_finally(vm: VM, _):
-    raise NotImplementedError
+    from .vm import Block, BlockType
+    block = Block(BlockType.Finally)
+    vm.push_block(block)
 
 
 def break_loop(vm: VM, _):
-    raise NotImplementedError
+    vm.add_statement(S.Break())
 
 
 def continue_loop(vm: VM, _):
-    raise NotImplementedError
+    vm.add_statement(S.Continue())
 
 
 def store_name(vm: VM, name):
-    raise NotImplementedError
+    var = vm.get_variable(name)
+    value = vm.pop()
+    vm.add_statement(S.Assign(var, value))
 
 
-def store_attr(vm: VM, _):
-    raise NotImplementedError
+def store_attr(vm: VM, attr):
+    value, obj = vm.popn(2)
+    vm.add_statement(S.SetAttr(obj, attr, value))
 
 
 def load_const(vm: VM, value):
@@ -84,11 +96,11 @@ def load_attr(vm: VM, name):
 
 def compare_op(vm: VM, opname):
     item1, item2 = vm.popn(2)
-    vm.push(E.compare_op(dis.cmp_op[opname])(item1, item2))
+    vm.push(E.compare_op(opname)(item1, item2))
 
 
 def build_tuple(vm: VM, n: int):
-    vm.push(vm.popn(n))
+    vm.push(tuple(vm.popn(n)))
 
 
 def build_list(vm: VM, n: int):
@@ -100,7 +112,7 @@ def build_set(vm: VM, n: int):
 
 
 def return_value(vm: VM, _):
-    raise NotImplementedError
+    vm.add_statement(S.ReturnValue(vm.pop()))
 
 
 def jump_forward(vm: VM, offset: int):
@@ -127,10 +139,33 @@ def pop_jump_if_true(vm: VM, _):
     pass
 
 
+def get_iter(vm: VM, _):
+    item = vm.pop()
+    if item.func != range:
+        raise NotImplementedError("Currently only for-range is supported")
+    args = item.args
+    if len(args) == 1:
+        start, stop, step = 0, args[0], 1
+    elif len(args) == 2:
+        start, stop, step = args[0], args[1], 1
+    else:
+        start, stop, step = args
+    vm.push(("range", start, stop, step))
+
+
+def for_iter(vm: VM, n: int):
+    _, start, stop, step = vm.pop()
+
+
 def call_function(vm: VM, nargs: int):
     args = vm.popn(nargs)
     func = vm.pop()
     vm.push(E.CallFunction(func, args))
+
+
+def store_subscr(vm: VM, _):
+    value, index, obj = vm.popn(3)
+    vm.add_statement(S.SetItem(obj, index, value))
 
 
 def unary_operation(expression):
@@ -179,11 +214,11 @@ binary_power = binary_operation(E.BinaryPower)
 get_aiter = not_implemented
 get_anext = not_implemented
 before_async_with = not_implemented
-inplace_add = binary_operation(E.InplaceAdd)
-inplace_subtract = binary_operation(E.InplaceSubtract)
-inplace_multiply = binary_operation(E.InplaceMultiply)
-inplace_modulo = binary_operation(E.InplaceModulo)
-store_subscr = ternary_operation(E.StoreSubscr)
+# inplace_add = binary_operation(S.InplaceAdd)
+# inplace_subtract = binary_operation(S.InplaceSubtract)
+# inplace_multiply = binary_operation(S.InplaceMultiply)
+# inplace_modulo = binary_operation(S.InplaceModulo)
+# store_subscr = ternary_operation(S.SetItem)
 delete_subscr = not_implemented
 binary_lshift = binary_operation(E.BinaryLShift)
 binary_rshift = binary_operation(E.BinaryRShift)
@@ -191,7 +226,6 @@ binary_and = binary_operation(E.BinaryAnd)
 binary_xor = binary_operation(E.BinaryXor)
 binary_or = binary_operation(E.BinaryOr)
 inplace_power = not_implemented
-get_iter = not_implemented
 get_yield_from_iter = not_implemented
 print_expr = not_implemented
 load_build_class = not_implemented

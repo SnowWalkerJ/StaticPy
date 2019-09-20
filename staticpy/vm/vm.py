@@ -1,20 +1,72 @@
 import abc
 import dis
+import enum
 import inspect
 
 
-class VM(abc.ABC):
-    __handlers = []
+class BlockType(enum.IntEnum):
+    Class = enum.auto
+    Function = enum.auto
+    Loop = enum.auto
+    If = enum.auto
+    Try = enum.auto
+    Except = enum.auto
+    Finally = enum.auto
 
+
+class LoopType(enum.IntEnum):
+    ForRange = enum.auto
+    While = enum.auto
+
+
+class Block:
+    def __init__(self, type=None):
+        self.type = type
+        self.statements = []
+        self.extra_info = {}
+
+    def translate(self) -> str:
+        pass
+
+
+class InstructionQueue:
+    def __init__(self, instruction: dis.Instruction):
+        self.instruction = instruction
+        self.instructions = [(instruction.opcode, instruction.argval)]
+
+    @property
+    def offset(self):
+        return self.instruction.offset
+
+    def inject_before(self, opcode, argval):
+        self.instructions.insert(0, (opcode, argval))
+
+    def inject_after(self, opcode, argval):
+        self.instructions.append((opcode, argval))
+
+    def inject_replace(self, opcode, argval):
+        self.instructions = [(opcode, argval)]
+
+    def reset(self):
+        self.instructions = [(self.instruction.opcode, self.instruction.argval)]
+
+    def run(self, vm):
+        for opcode, argval in self.instructions:
+            handler = vm.gethandler(opcode)
+            handler(vm, argval)
+
+
+class VM(abc.ABC):
     def __init__(self):
-        self.block_stack = []
+        self.block_stack = [Block(BlockType.Function)]
         self.data_stack = []
         self.statements = []
         self.__variables = {}
-        self.__load_handlers()
+        self.__instructions = {}
+        self.__ip = 0
 
-    def push(self, eos):
-        self.data_stack.append(eos)
+    def push(self, tos):
+        self.data_stack.append(tos)
 
     def pop(self):
         return self.data_stack.pop()
@@ -27,27 +79,48 @@ class VM(abc.ABC):
         self.data_stack[-n:] = []
         return retvalues
 
+    def push_block(self, block):
+        self.block_stack.append(block)
+
+    def pop_block(self):
+        return self.block_stack.pop()
+
     def gethandler(self, opcode):
-        return self.__handlers[opcode]
+        opname = dis.opname[opcode]
+        from . import handlers
+        if not hasattr(handlers, opname.lower()):
+            raise NotImplementedError(f"{opname} is not implemented yet")
+        return getattr(handlers, opname.lower())
 
     def get_variable(self, name):
         return self.__variables[name]
 
     def add_statement(self, stmt):
-        self.statements.append(stmt)
-
-    @classmethod
-    def __load_handlers(cls):
-        from . import handlers, constant
-        tmp = []
-        for name, value in inspect.getmembers(constant):
-            tmp.append((value, getattr(handlers, name.lower(), handlers.not_implemented)))
-        tmp.sort()
-        cls.__handlers = [x[1] for x in tmp]
+        self.current_block.statements.append(stmt)
 
     @abc.abstractmethod
     def run(self):
         pass
+
+    @property
+    def IP(self):
+        return self.__ip
+
+    @IP.setter
+    def IP(self, value):
+        self.__ip = value
+
+    @property
+    def current_instruction(self):
+        return self.__instructions[self.IP]
+
+    @property
+    def current_block(self):
+        return self.block_stack[-1]
+
+    @property
+    def instructions(self):
+        return self.__instructions
 
 
 class FunctionVM(VM):
@@ -57,8 +130,11 @@ class FunctionVM(VM):
         self.__source = None
 
     def run(self):
-        self.resolve_annotations()
-        for instruction in dis.get_instructions(self.code):
+        self.setup_variables()
+        self.setup_instructions()
+        self.IP = 0
+        while self.IP <= max(self.__instructions.keys()):
+            instruction = self.current_instruction
             opcode = instruction.opcode
             argval = instruction.argval
             offset = instruction.offset
@@ -67,12 +143,18 @@ class FunctionVM(VM):
             if starts_line is not None:
                 self.add_source(starts_line)
             print(instruction)
-            # handler = self.gethandler(opcode)
-            # handler(self, argval)
+            instruction.run(self)
+
+    def setup_instructions(self):
+        for instruction in dis.get_instructions(self.code):
+            offset = instruction.offset
+            self.__instructions[offset] = InstructionQueue(instruction)
+
+    def setup_variables(self):
+        pass
 
     def resolve_annotations(self):
         """Resolve in-function annotations with regex"""
-        pass
 
     def add_source(self, line):
         pass
