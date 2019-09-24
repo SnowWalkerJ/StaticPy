@@ -3,6 +3,10 @@ class Session:
         self.blocks = []
         self.pure = True
 
+    @property
+    def current_block(self):
+        return self.blocks[-1]
+
     def push_block(self, block):
         self.blocks.append(block)
 
@@ -25,3 +29,7 @@ __sessions = []
 def get_session():
     global __sessions
     return __sessions[-1]
+
+
+def new_session():
+    return Session()

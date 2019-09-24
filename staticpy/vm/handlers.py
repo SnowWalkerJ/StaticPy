@@ -64,6 +64,7 @@ def continue_loop(vm: VM, _):
 
 
 def store_name(vm: VM, name):
+    # When should this happen?
     var = vm.get_variable(name)
     value = vm.pop()
     vm.add_statement(S.Assign(var, value))
@@ -120,19 +121,45 @@ def jump_forward(vm: VM, offset: int):
 
 
 def jump_if_false_or_pop(vm: VM, offset: int):
-    pass
+    "This is used as `a and b`"
+    target = vm.instructions[offset]
+    target.inject_before(binary_and, (vm, None))
 
 
 def jump_if_true_or_pop(vm: VM, offset: int):
-    pass
+    "This is used as `a or b`"
+    target = vm.instructions[offset]
+    target.inject_before(binary_or, (vm, None))
 
 
 def jump_absolute(vm: VM, offset: int):
-    pass
+    from .vm import BlockType
+    if vm.session.current_block.type == BlockType.Loop:
+        # NOTE: This assumes a JUMP_ABSOLUTE inside Loop only aims at start of loop
+        if vm.instructions[offset+2].opcode == constant.POP_BLOCK:
+            # end of loop
+            return
+        else:
+            vm.add_statement(S.Continue())
+    elif vm.session.current_block.type == BlockType.Condition:
+        # TODO: JUMP_ABSOLUTE inside if
+        raise NotImplementedError
 
 
-def pop_jump_if_false(vm: VM, _):
-    pass
+def pop_jump_if_false(vm: VM, offset: int):
+    from .vm import Block, BlockType
+    condition = vm.pop()
+    block = Block(BlockType.Condition)
+    block.extra_info = {
+        "condition": condition,
+    }
+    vm.push_block(block)
+    if offset > vm.IP:
+        target = vm.instructions[offset]
+        target.inject_before(pop_block, (vm, None))
+    else:
+        # TODO: handle this situation
+        raise NotImplementedError
 
 
 def pop_jump_if_true(vm: VM, _):
@@ -155,6 +182,17 @@ def get_iter(vm: VM, _):
 
 def for_iter(vm: VM, n: int):
     _, start, stop, step = vm.pop()
+    vm.IP += 2
+    if vm.current_instruction.opcode != constant.STORE_FAST:
+        raise SyntaxError("Can't recognize opcode {opcode}({opname}) after FOR_ITER".format(
+                          opcode=vm.current_instruction.opcode, opname=vm.current_instruction.opname))
+    iter_var = vm.get_variable(vm.current_instruction.argval)
+    vm.session.current_block.extra_info = {
+        "start": start,
+        "stop": stop,
+        "step": step,
+        "variable": iter_var,
+    }
 
 
 def call_function(vm: VM, nargs: int):
@@ -166,6 +204,11 @@ def call_function(vm: VM, nargs: int):
 def store_subscr(vm: VM, _):
     value, index, obj = vm.popn(3)
     vm.add_statement(S.SetItem(obj, index, value))
+
+
+def pop_block(vm: VM, _):
+    block = vm.pop_block()
+    vm.add_statement(S.BlockStatement(block))
 
 
 def unary_operation(expression):
@@ -181,6 +224,18 @@ def binary_operation(expression):
         item1, item2 = vm.popn(2)
         result = expression(item1, item2)
         vm.push(result)
+    return fn
+
+
+def inplace_operation(expression):
+    def fn(vm: VM, _):
+        item1, item2 = vm.popn(2)
+        result = expression(item1, item2)
+        vm.push(result)
+        store_inst = vm.instructions[IP+2]
+        if store_inst.opcode != constant.STORE_FAST:
+            raise RuntimeError("Expect STORE_FAST right after inplace operation")
+        store_inst.mute()
     return fn
 
 
@@ -207,18 +262,18 @@ binary_multiply = binary_operation(E.BinaryMultiply)
 binary_modulo = binary_operation(E.BinaryModulo)
 binary_add = binary_operation(E.BinaryAdd)
 binary_subtract = binary_operation(E.BinarySubtract)
-binary_subscr = binary_operation(E.BinarySubscr)
-binary_floor_divide = binary_operation(E.BinaryFloorDivide)
-binary_true_divide = binary_operation(E.BinaryTrueDivide)
-binary_power = binary_operation(E.BinaryPower)
+binary_subscr = binary_operation(E.GetItem)
+binary_floor_divide = binary_operation(E.BinaryDivide)
+binary_true_divide = binary_operation(E.BinaryDivide)
+binary_power = not_implemented
 get_aiter = not_implemented
 get_anext = not_implemented
 before_async_with = not_implemented
-# inplace_add = binary_operation(S.InplaceAdd)
-# inplace_subtract = binary_operation(S.InplaceSubtract)
-# inplace_multiply = binary_operation(S.InplaceMultiply)
-# inplace_modulo = binary_operation(S.InplaceModulo)
-# store_subscr = ternary_operation(S.SetItem)
+inplace_add = inplace_operation(S.InplaceAdd)
+inplace_subtract = inplace_operation(S.InplaceSubtract)
+inplace_multiply = inplace_operation(S.InplaceMultiply)
+inplace_modulo = inplace_operation(S.InplaceModulo)
+store_subscr = ternary_operation(S.SetItem)
 delete_subscr = not_implemented
 binary_lshift = binary_operation(E.BinaryLShift)
 binary_rshift = binary_operation(E.BinaryRShift)
@@ -231,17 +286,16 @@ print_expr = not_implemented
 load_build_class = not_implemented
 yield_from = not_implemented
 get_awaitable = not_implemented
-inplace_lshift = binary_operation(E.InplaceLShift)
-inplace_rshift = binary_operation(E.InplaceRShift)
-inplace_and = binary_operation(E.InplaceAnd)
-inplace_xor = binary_operation(E.InplaceXor)
-inplace_or = binary_operation(E.InplaceOr)
+inplace_lshift = inplace_operation(S.InplaceLShift)
+inplace_rshift = inplace_operation(S.InplaceRShift)
+inplace_and = not_implemented
+inplace_xor = not_implemented
+inplace_or = not_implemented
 with_cleanup_start = not_implemented
 with_cleanup_stop = not_implemented
 import_star = not_implemented
 setup_annotations = not_implemented
 yield_value = not_implemented
-pop_block = not_implemented
 end_finally = not_implemented
 pop_except = not_implemented
 delete_name = not_implemented

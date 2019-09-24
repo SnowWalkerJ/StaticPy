@@ -3,12 +3,17 @@ import dis
 import enum
 import inspect
 
+from ..session import get_session, new_session
+from .. import statement as S, block as B
+from . import constant
+
 
 class BlockType(enum.IntEnum):
     Class = enum.auto
     Function = enum.auto
     Loop = enum.auto
-    If = enum.auto
+    Condition = enum.auto
+    Else = enum.auto
     Try = enum.auto
     Except = enum.auto
     Finally = enum.auto
@@ -25,35 +30,80 @@ class Block:
         self.statements = []
         self.extra_info = {}
 
-    def translate(self) -> str:
-        pass
+    def add_statement(self, stmt):
+        self.statements.append(stmt)
+
+    def realize(self) -> B.Block:
+        if self.type == BlockType.Condition:
+            return B.If(statements=self.statements, **self.extra_info)
+        elif self.type == BlockType.Else:
+            return B.Else(statements=self.statements, **self.extra_info)
+        elif self.type == BlockType.Loop:
+            return B.For(statements=self.statements, **self.extra_info)
+        elif self.type == BlockType.Function:
+            raise NotImplementedError
+        elif self.type == BlockType.Class:
+            raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+    def __enter__(self):
+        get_session().push_block(self)
+
+    def __exit__(self, *args):
+        if get_session().pop_block() is not self:
+            raise RuntimeError("Block stack unbalanced")
 
 
-class InstructionQueue:
+class WrappedInstruction:
     def __init__(self, instruction: dis.Instruction):
         self.instruction = instruction
-        self.instructions = [(instruction.opcode, instruction.argval)]
+        self.inst_tuple = instruction.opcode, instruction.argval
+        self.hooks_before = []
+        self.hooks_after = []
 
     @property
     def offset(self):
         return self.instruction.offset
 
-    def inject_before(self, opcode, argval):
-        self.instructions.insert(0, (opcode, argval))
+    @property
+    def opcode(self):
+        return self.instruction.opcode
 
-    def inject_after(self, opcode, argval):
-        self.instructions.append((opcode, argval))
+    @property
+    def opname(self):
+        return self.instruction.opname
 
-    def inject_replace(self, opcode, argval):
-        self.instructions = [(opcode, argval)]
+    @property
+    def argval(self):
+        return self.instruction.argval
+
+    def inject_before(self, func, args=(), kwargs={}):
+        self.hooks_before.append((func, args, kwargs))
+
+    def inject_after(self, func, args=(), kwargs={}):
+        self.hooks_after.append((func, args, kwargs))
+
+    def mute(self, opcode, argval):
+        self.inst_tuple = constant.NOP, None
 
     def reset(self):
-        self.instructions = [(self.instruction.opcode, self.instruction.argval)]
+        self.inst_tuple = self.instruction.opcode, self.instruction.argval
 
     def run(self, vm):
-        for opcode, argval in self.instructions:
-            handler = vm.gethandler(opcode)
-            handler(vm, argval)
+        self.handle_before_hooks()
+        opcode, argval = self.inst_tuple
+        handler = vm.gethandler(opcode)
+        handler(vm, argval)
+        self.handle_after_hooks()
+
+    def handle_before_hooks(self):
+        for func, args, kwargs in self.hooks_before:
+            func(*args, **kwargs)
+
+    def handle_after_hooks(self):
+        for func, args, kwargs in self.hooks_after:
+            func(*args, **kwargs)
 
 
 class VM(abc.ABC):
@@ -64,6 +114,7 @@ class VM(abc.ABC):
         self.__variables = {}
         self.__instructions = {}
         self.__ip = 0
+        self.__session = new_session()
 
     def push(self, tos):
         self.data_stack.append(tos)
@@ -80,10 +131,10 @@ class VM(abc.ABC):
         return retvalues
 
     def push_block(self, block):
-        self.block_stack.append(block)
+        self.session.push_block(block)
 
     def pop_block(self):
-        return self.block_stack.pop()
+        self.session.pop_block()
 
     def gethandler(self, opcode):
         opname = dis.opname[opcode]
@@ -96,7 +147,7 @@ class VM(abc.ABC):
         return self.__variables[name]
 
     def add_statement(self, stmt):
-        self.current_block.statements.append(stmt)
+        self.session.current_block.add_statement(stmt)
 
     @abc.abstractmethod
     def run(self):
@@ -111,16 +162,16 @@ class VM(abc.ABC):
         self.__ip = value
 
     @property
-    def current_instruction(self):
+    def current_instruction(self) -> WrappedInstruction:
         return self.__instructions[self.IP]
 
     @property
-    def current_block(self):
-        return self.block_stack[-1]
+    def instructions(self) -> list[WrappedInstruction]:
+        return self.__instructions
 
     @property
-    def instructions(self):
-        return self.__instructions
+    def session(self):
+        return self.__session
 
 
 class FunctionVM(VM):
@@ -144,11 +195,12 @@ class FunctionVM(VM):
                 self.add_source(starts_line)
             print(instruction)
             instruction.run(self)
+            self.IP += 2
 
     def setup_instructions(self):
         for instruction in dis.get_instructions(self.code):
             offset = instruction.offset
-            self.__instructions[offset] = InstructionQueue(instruction)
+            self.__instructions[offset] = WrappedInstruction(instruction)
 
     def setup_variables(self):
         pass
@@ -157,7 +209,11 @@ class FunctionVM(VM):
         """Resolve in-function annotations with regex"""
 
     def add_source(self, line):
-        pass
+        self.add_statement(S.BlockComment([
+            "    " + self.source[line - 1],
+            ">>> " + self.source[line],
+            "    " + self.source[line + 1],
+        ]))
 
     @property
     def source(self):

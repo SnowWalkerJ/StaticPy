@@ -1,14 +1,22 @@
 import abc
+import typing
+
+from . import expression as E
 
 
 class Statement(abc.ABC):
-    pass
+    @abc.abstractmethod
+    def translate(self) -> typing.List[str]:
+        pass
 
 
 class Assign(Statement):
     def __init__(self, target, expr):
         self.target = target
         self.expr = expr
+
+    def translate(self):
+        return [f"{self.target} = {self.expr};"]
 
 
 class SetAttr(Statement):
@@ -17,6 +25,9 @@ class SetAttr(Statement):
         self.attr = attr
         self.value = value
 
+    def translate(self):
+        return [f"{self.obj}.{self.attr} = {self.value};"]
+
 
 class SetItem(Statement):
     def __init__(self, obj, index, value):
@@ -24,23 +35,91 @@ class SetItem(Statement):
         self.index = index
         self.value = value
 
+    def translate(self):
+        return [f"{self.obj}[{self.index}] = {self.value};"]
+
 
 class ReturnValue(Statement):
     def __init__(self, expr):
         self.expr = expr
+
+    def translate(self):
+        return [f"return {self.expr};"]
 
 
 class ExpressionStatement(Statement):
     def __init__(self, expr):
         self.expr = expr
 
+    def translate(self):
+        return [str(self.expr) + ";"]
+
 
 class Continue(Statement):
-    pass
+    def translate(self):
+        return ["continue;"]
 
 
 class Break(Statement):
-    pass
+    def translate(self):
+        return ["break;"]
+
+
+class BlockStatement(Statement):
+    def __init__(self, block):
+        self.block = block
+
+    def translate(self):
+        return ["  " + line for line in self.block.translate()]
+
+
+def inplace_statement(name, op):
+    class InplaceStatement(Statement):
+        name = name
+        op = op
+
+        def __init__(self, target, expr: E.Expression):
+            self.target = target
+            self.expr = E.cast_value_to_expression(expr)
+
+        def translate(self):
+            return [f"{self.target} {self.op} {self.expr};"]
+
+        def __repr__(self):
+            return f"{self.name}({self.target}, {self.expr})"
+
+    return InplaceStatement
+
+
+class SingleLineComment(Statement):
+    def __init__(self, text):
+        self.text = text
+
+    def translate(self):
+        return ["// " + str(self.text)]
+
+
+class BlockComment(Statement):
+    def __init__(self, texts):
+        self.texts = texts
+
+    def translate(self):
+        lines = []
+        for i, line in enumerate(self.texts):
+            prefix = "/* " if i == 0 else " * "
+            lines.append(prefix + line)
+        lines.append(" */")
+        return lines
+
+
+InplaceLShift = inplace_statement("InplaceLShift", "<<=")
+InplaceRShift = inplace_statement("InplaceRShift", ">>=")
+InplaceAdd = inplace_statement("InplaceAdd", "+=")
+InplaceSubtract = inplace_statement("InplaceSubtract", "-=")
+InplaceMultiply = inplace_statement("InplaceMultiply", "*=")
+InplaceDivide = inplace_statement("InplaceDivide", "/=")
+InplaceModulo = inplace_statement("InplaceModulo", "%=")
+InplaceAnd = inplace_statement("InplaceAdd", "+=")
 
 
 def from_expression(expr):
