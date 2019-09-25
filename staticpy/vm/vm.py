@@ -144,7 +144,7 @@ class VM(abc.ABC):
         self.session.push_block(block)
 
     def pop_block(self):
-        self.session.pop_block()
+        return self.session.pop_block()
 
     def gethandler(self, opcode):
         opname = dis.opname[opcode]
