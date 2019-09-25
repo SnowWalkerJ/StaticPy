@@ -2,6 +2,7 @@ import abc
 import dis
 import enum
 import inspect
+import itertools
 
 from ..session import get_session, new_session
 from .. import statement as S, block as B
@@ -35,11 +36,20 @@ class Block:
 
     def realize(self) -> B.Block:
         if self.type == BlockType.Condition:
-            return B.If(statements=self.statements, **self.extra_info)
+            return B.If(condition=self.extra_info['condition'], statements=self.statements)
         elif self.type == BlockType.Else:
-            return B.Else(statements=self.statements, **self.extra_info)
+            return B.Else(statements=self.statements)
         elif self.type == BlockType.Loop:
-            return B.For(statements=self.statements, **self.extra_info)
+            if self.extra_info['type'] == "for":
+                return B.For(
+                    statements=self.statements,
+                    variable=self.extra_info['variable'],
+                    start=self.extra_info['start'],
+                    stop=self.extra_info['stop'],
+                    step=self.extra_info['step'],
+                )
+            else:
+                return B.While(condition=self.extra_info['condition'], statements=self.statements)
         elif self.type == BlockType.Function:
             raise NotImplementedError
         elif self.type == BlockType.Class:
@@ -108,7 +118,7 @@ class WrappedInstruction:
 
 class VM(abc.ABC):
     def __init__(self):
-        self.block_stack = [Block(BlockType.Function)]
+        self.block_stack = []
         self.data_stack = []
         self.statements = []
         self.__variables = {}
@@ -175,13 +185,17 @@ class VM(abc.ABC):
 
 
 class FunctionVM(VM):
-    def __init__(self, func):
+    def __init__(self, func, is_method=False, is_constructor=False):
         self.func = func
         super().__init__()
         self.__source = None
+        self.__is_method = is_method
+        self.__is_constructor = is_constructor
 
     def run(self):
+        self.resolve_signature()
         self.setup_variables()
+        self.setup_block()
         self.setup_instructions()
         self.IP = 0
         while self.IP <= max(self.__instructions.keys()):
@@ -203,10 +217,51 @@ class FunctionVM(VM):
             self.__instructions[offset] = WrappedInstruction(instruction)
 
     def setup_variables(self):
-        pass
+        from .. import variable as V
+        untyped_variables = set(self.func.__code__.co_varnames)
+        for name, type in itertools.chain(self.inputs, self.resolve_annotations()):
+            untyped_variables.remove(name)
+            self.__variables[name] = V.Variable(name, type=type, init=None, block='')
+        if untyped_variables:
+            raise TypeError("The following variables are untyped:\n    {}"
+                            .format(untyped_variables))
+
+    def setup_block(self):
+        block = Block(BlockType.Function)
+        block.extra_info = {
+            "name": self.func.__name__,
+            "output": self.output,
+            "inputs": self.inputs,
+            "is_method": self.__is_method",
+            "is_cconstructor": self.__is_constructor,
+        }
+        self.push_block(block)
 
     def resolve_annotations(self):
         """Resolve in-function annotations with regex"""
+        import re
+        pattern = re.compile(r"([a-zA-Z_][a-zA-Z0-9_]*) *: *([a-zA-Z0-9\._]+)")
+        source = self.source.split("\n")
+        variables = []
+        for line in source:
+            match = pattern.match(line)
+            if match:
+                varname = match.group(1)
+                annotation = match.group(2)
+                type = eval(annotation)
+                variables.append((type, varname))
+        return variables
+ 
+    def resolve_signature(self):
+        sig = inspect.signature(self.func)
+        ret_type = sig.return_annotation
+        assert self.__is_constructor == (ret_type == inspect._empty)
+        inputs = [(p.annotation, p.name) for p in sig.parameters.values()
+                  if not (self.__is_method and p.name == "self")]
+        if any(x[0] == inspect._empty for x in inputs):
+            raise SyntaxError("All arguments must be annotated")
+        self.inputs = inputs
+        self.output = ret_type
 
     def add_source(self, line):
         self.add_statement(S.BlockComment([
