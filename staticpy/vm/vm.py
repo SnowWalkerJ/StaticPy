@@ -244,7 +244,7 @@ class FunctionVM(VM):
         source = self.source.split("\n")
         variables = []
         for line in source:
-            match = pattern.match(line)
+            match = pattern.match(line.strip())
             if match:
                 varname = match.group(1)
                 annotation = match.group(2)
