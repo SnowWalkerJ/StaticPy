@@ -120,16 +120,30 @@ def jump_forward(vm: VM, offset: int):
     pass
 
 
+def logical_and(vm: VM, _):
+    "This is not an instrument"
+    a, b = vm.popn(2)
+    result = E.LogicalAnd(a, b)
+    vm.push(result)
+
+
+def logical_or(vm: VM, _):
+    "This is not an instrument"
+    a, b = vm.popn(2)
+    result = E.LogicalOr(a, b)
+    vm.push(result)
+
+
 def jump_if_false_or_pop(vm: VM, offset: int):
     "This is used as `a and b`"
     target = vm.instructions[offset]
-    target.inject_before(binary_and, (vm, None))
+    target.inject_before(logical_and, (vm, None))
 
 
 def jump_if_true_or_pop(vm: VM, offset: int):
     "This is used as `a or b`"
     target = vm.instructions[offset]
-    target.inject_before(binary_or, (vm, None))
+    target.inject_before(logical_or, (vm, None))
 
 
 def jump_absolute(vm: VM, offset: int):
@@ -163,7 +177,7 @@ def pop_jump_if_false(vm: VM, offset: int):
 
 
 def pop_jump_if_true(vm: VM, _):
-    pass
+    raise NotImplementedError
 
 
 def get_iter(vm: VM, _):
@@ -288,9 +302,9 @@ yield_from = not_implemented
 get_awaitable = not_implemented
 inplace_lshift = inplace_operation(S.InplaceLShift)
 inplace_rshift = inplace_operation(S.InplaceRShift)
-inplace_and = not_implemented
-inplace_xor = not_implemented
-inplace_or = not_implemented
+inplace_and = inplace_operation(S.InplaceAnd)
+inplace_xor = inplace_operation(S.InplaceXor)
+inplace_or = inplace_operation(S.InplaceOr)
 with_cleanup_start = not_implemented
 with_cleanup_stop = not_implemented
 import_star = not_implemented
