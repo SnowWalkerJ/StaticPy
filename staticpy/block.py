@@ -63,7 +63,6 @@ class For(Scope):
         return super().translate()
 
     def prefix(self):
-        # TODO: iterator type
         var = self.variable
         start = self.start
         stop = self.stop
@@ -73,4 +72,16 @@ class For(Scope):
             steping = f"{var}++"
         elif step == -1:
             steping = f"{var}--"
-        return f"for(int {var} = {start}; {var} < {stop}; {steping}) {{"
+        return f"for({var} = {start}; {var} < {stop}; {steping}) {{"
+
+
+class While(Scope):
+    def __init__(self, condition, statements):
+        self.condition = condition
+        super().__init__(statements)
+
+    def translate(self):
+        return super().translate()
+
+    def prefix(self):
+        return f"while({self.condition}) {{"

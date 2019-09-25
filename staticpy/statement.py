@@ -119,7 +119,9 @@ InplaceSubtract = inplace_statement("InplaceSubtract", "-=")
 InplaceMultiply = inplace_statement("InplaceMultiply", "*=")
 InplaceDivide = inplace_statement("InplaceDivide", "/=")
 InplaceModulo = inplace_statement("InplaceModulo", "%=")
-InplaceAnd = inplace_statement("InplaceAdd", "+=")
+InplaceAnd = inplace_statement("InplaceAnd", "&=")
+InplaceXor = inplace_statement("InplaceXor", "^=")
+InplaceOr = inplace_statement("InplaceOr", "|=")
 
 
 def from_expression(expr):

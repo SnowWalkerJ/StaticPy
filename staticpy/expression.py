@@ -85,9 +85,11 @@ BinaryAdd = binary_expression('BinaryAdd', '+', 13)
 BinarySubtract = binary_expression('BinarySubtract', '-', 13)
 BinaryLShift = binary_expression('BinaryLShift', '<<', 12)
 BinaryRShift = binary_expression('BinaryRShift', '>>', 12)
-BinaryAnd = binary_expression('BinaryAdd', '&&', 6)
+BinaryAnd = binary_expression('BinaryAdd', '&', 8)
 BinaryXor = binary_expression('BinaryXor', '^')
-BinaryOr = binary_expression('BinaryOr', '||', 5)
+BinaryOr = binary_expression('BinaryOr', '|', 7)
+LogicalAnd = binary_expression('LogicalAnd', '&&', 6)
+LogicalOr = binary_expression('LogicalOr', '||', 5)
 CompareGT = compare_expression('GreaterThan', '>', 11)
 CompareLT = compare_expression('LessThan', '<', 11)
 CompareGE = compare_expression('GreaterEqual', '>=', 11)
@@ -140,8 +142,7 @@ class Const(Expression):
 
     def __str__(self):
         if self.type is T.String:
-            # TODO: handle qutoes more properly
-            value = self.value.replace('"', "'")
+            value = self.value.replace("\\", "\\\\").replace("\"", "\\\"")
             return f'"{value}"'
         else:
             return str(self.value).lower()
