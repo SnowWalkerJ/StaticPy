@@ -9,11 +9,10 @@ class Block(abc.ABC):
     def translate(self):
         pass
 
-    def prefix(self):
-        return ""
 
-    def suffix(self):
-        return ""
+class EmptyBlock(Block):
+    def translate(self):
+        return [stmt.translate() for stmt in self.statements]
 
 
 class Scope(Block):
