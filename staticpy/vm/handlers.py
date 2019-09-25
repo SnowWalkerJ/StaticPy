@@ -40,6 +40,10 @@ def nop(vm: VM, _):
 def setup_loop(vm: VM, offset: int):
     from .vm import Block, BlockType
     block = Block(BlockType.Loop)
+    block.extra_info = {
+        "begin_offset": vm.IP + 2,
+        "end_offset": offset,
+    }
     vm.push_block(block)
 
 
@@ -65,6 +69,7 @@ def continue_loop(vm: VM, _):
 
 def store_name(vm: VM, name):
     # When should this happen?
+    raise SyntaxError("Unexpected STORE_NAME")
     var = vm.get_variable(name)
     value = vm.pop()
     vm.add_statement(S.Assign(var, value))
@@ -87,9 +92,21 @@ def store_fast(vm: VM, name: str):
     vm.add_statement(S.Assign(vm.get_variable(name), vm.pop()))
 
 
-def load_name(vm: VM, name):
+def load_name(vm: VM, name: str):
     vm.push(vm.get_name(name))
 
+
+def load_global(vm: VM, name: str):
+    # TODO: needs refactor
+    import staticpy as sp
+    global_items = {
+        "range": range,
+        "sp": sp,
+    }
+    try:
+        return global_items[name]
+    except KeyError:
+        raise NameError(f"Can't find global item `{name}`")
 
 def load_attr(vm: VM, name):
     vm.push(E.GetAttr(vm.pop(), name))
@@ -147,33 +164,79 @@ def jump_if_true_or_pop(vm: VM, offset: int):
 
 
 def jump_absolute(vm: VM, offset: int):
-    from .vm import BlockType
-    if vm.session.current_block.type == BlockType.Loop:
-        # NOTE: This assumes a JUMP_ABSOLUTE inside Loop only aims at start of loop
+    from .vm import BlockType, Block
+    def _continue_statement():
+        if offset != vm.session.current_block.extra_info("begin_offset"):
+            raise SyntaxError("Unexpected JUMP_ABSOLUTE target")
         if vm.instructions[offset+2].opcode == constant.POP_BLOCK:
             # end of loop
             return
         else:
             vm.add_statement(S.Continue())
-    elif vm.session.current_block.type == BlockType.Condition:
-        # TODO: JUMP_ABSOLUTE inside if
-        raise NotImplementedError
+
+    def _else_statement():
+        # JUMP_ABSOLUTE at the end of IF
+        vm.instruments[vm.IP+2].inject_before(lambda: vm.push_block(Block(BlockType.Else)), ())
+        vm.instruments[offset-2].inject_after(pop_block, (vm, None))
+
+    current_block = vm.session.current_block
+    if current_block.type == BlockType.Loop:
+        _continue_statement()
+    elif current_block.type == BlockType.Condition and vm.IP == current_block.extra_info['end_offset']:
+        _else_statement()
+    else:
+        raise SyntaxError("Unexpected JUMP_ABSOLUTE target")
 
 
 def pop_jump_if_false(vm: VM, offset: int):
+    """
+    POP_JUMP_IF_FALSE can be used in either an "if" statement
+    or a "while" statement.
+    
+    The circumstances of a "while" statement meets the following
+    requirements:
+    
+    1. there is a SETUP_LOOP before but the loop type is not determined
+    2. target of the jump is a POP_BLOCK statement
+    3. right before POP_BLOCK there is a JUMP_ABSOLUTE targeting
+    after SETUP_LOOP
+    """
     from .vm import Block, BlockType
     condition = vm.pop()
-    block = Block(BlockType.Condition)
-    block.extra_info = {
-        "condition": condition,
-    }
-    vm.push_block(block)
-    if offset > vm.IP:
-        target = vm.instructions[offset]
-        target.inject_before(pop_block, (vm, None))
+    target = vm.instructions[offset - 2]
+    def _if_statement():
+        block = Block(BlockType.Condition)
+        block.extra_info = {
+            "condition": condition,
+            "begin_offset": vm.IP + 2,
+            "end_offset": offset - 2,
+        }
+        if offset > vm.IP:
+            target.inject_after(pop_block, (vm, None))
+        else:
+            if vm.session.current_block.type == BlockType and \
+                    offset == vm.session.current_block.extra_info['begin_offset']:
+                vm.current_instrument.inject_after(continue_loop, (vm, None))
+                vm.curent_instrument.inject_after(pop_block, (vm, None))
+            else:
+                raise SyntaxError("Unexected JUMP target")
+        vm.push_block(block)
+    
+    def _while_statement():
+        block.extra_info = {
+            "type": "while",
+            "condition": condition,
+        }
+        vm.instruments[vm.IP-2].mute()   # mute the last abundant JUMP_ABSOLUTE
+    
+    block = vm.session.current_block
+    cond1 = block.type == BlockType.Loop and not block.extra_info.get('type')
+    cond2 = target.opcode == constant.POP_BLOCK
+    cond3 = vm.instruments[vm.IP-2].opcode == constant.JUMP_ABSOLUTE
+    if cond1 and cond2 and cond3:
+        _while_statement()
     else:
-        # TODO: handle this situation
-        raise NotImplementedError
+        _if_statemtent()
 
 
 def pop_jump_if_true(vm: VM, _):
@@ -202,6 +265,7 @@ def for_iter(vm: VM, n: int):
                           opcode=vm.current_instruction.opcode, opname=vm.current_instruction.opname))
     iter_var = vm.get_variable(vm.current_instruction.argval)
     vm.session.current_block.extra_info = {
+        "type": "for",
         "start": start,
         "stop": stop,
         "step": step,
@@ -322,7 +386,6 @@ delete_global = not_implemented
 build_map = not_implemented
 import_name = not_implemented
 import_from = not_implemented
-load_global = not_implemented
 delete_fast = not_implemented
 raise_varargs = not_implemented
 make_function = not_implemented
