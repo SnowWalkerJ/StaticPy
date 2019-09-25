@@ -85,3 +85,20 @@ class While(Scope):
 
     def prefix(self):
         return f"while({self.condition}) {{"
+
+class Function(Scope):
+    def __init__(self, name, inputs, output, statements, is_method=False, is_constructor=False):
+        self.name = name
+        self.inputs = inputs
+        self.output = output
+        self.is_method = is_method
+        self.is_constructor = is_constructor
+        super().__Init__(statements)
+        
+    def translate(self):
+        return super().translate()
+    
+    def prefix(self):
+        ret_type = "" if self.is_constructor else f"{self.output} "
+        args = ", ".join(f"{type.cname()} {name}" for type, name in self.inputs)
+        return f"{ret_type}{self.name}({args}) {{"
