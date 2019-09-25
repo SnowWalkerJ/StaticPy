@@ -2,12 +2,23 @@ import abc
 
 
 class Block(abc.ABC):
-    def __init__(self, statements):
-        self.statements = statements
+    def __init__(self, statements=None):
+        self.statements = statements or []
 
     @abc.abstractmethod
     def translate(self):
         pass
+
+    def __enter__(self):
+        from .session import get_session
+        get_session().push_block(self)
+
+    def __exit__(self, *args):
+        from .session import get_session
+        get_session().pop_block(self)
+
+    def add_statement(self, stmt):
+        self.statements.append(stmt)
 
 
 class EmptyBlock(Block):
@@ -18,7 +29,13 @@ class EmptyBlock(Block):
 class Scope(Block):
     @abc.abstractmethod
     def translate(self):
-        return [self.prefix()] + ["  " + stmt.translate() for stmt in self.statements] + [self.suffix()]
+        statements = []
+        statements.append(self.prefix())
+        for stmt in self.statements:
+            for sub in stmt.translate():
+                statements.append('  ' + sub)
+        statements.append(self.suffix())
+        return statements
 
     def prefix(self):
         return "{"
@@ -92,11 +109,11 @@ class Function(Scope):
         self.output = output
         self.is_method = is_method
         self.is_constructor = is_constructor
-        super().__Init__(statements)
-        
+        super().__init__(statements)
+
     def translate(self):
         return super().translate()
-    
+
     def prefix(self):
         ret_type = "" if self.is_constructor else f"{self.output} "
         args = ", ".join(f"{type.cname()} {name}" for type, name in self.inputs)

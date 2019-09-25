@@ -1,6 +1,6 @@
 from ..session import get_session
 from .base import TypeBase
-from .array import ArrayType
+# from .array import ArrayType
 
 
 class PrimitiveType(TypeBase):

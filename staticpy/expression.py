@@ -19,10 +19,13 @@ class OpExpression(Expression):
 
 
 def unary_expression(name, op, level=None):
+    my_name = name
+    my_op = op
+    my_level = level
     class UnaryExpression(OpExpression):
-        op = op
-        name = name
-        level = level
+        op = my_op
+        name = my_name
+        level = my_level
 
         def __init__(self, item):
             self.item = self.add_bracket(cast_value_to_expression(item))
@@ -37,10 +40,13 @@ def unary_expression(name, op, level=None):
 
 
 def binary_expression(name, op, level=None):
+    my_name = name
+    my_op = op
+    my_level = level
     class BinaryExpression(OpExpression):
-        op = op
-        name = name
-        level = level
+        op = my_op
+        name = my_name
+        level = my_level
 
         def __init__(self, item1, item2):
             self.item1 = self.add_bracket(cast_value_to_expression(item1))
@@ -56,10 +62,13 @@ def binary_expression(name, op, level=None):
 
 
 def compare_expression(name, op, level=None):
+    my_name = name
+    my_op = op
+    my_level = level
     class BinaryExpression(OpExpression):
-        op = op
-        name = name
-        level = level
+        op = my_op
+        name = my_name
+        level = my_level
 
         def __init__(self, item1, item2):
             self.item1 = self.add_bracket(cast_value_to_expression(item1))

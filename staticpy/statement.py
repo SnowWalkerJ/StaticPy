@@ -10,6 +10,15 @@ class Statement(abc.ABC):
         pass
 
 
+class VariableDeclaration(Statement):
+    def __init__(self, var):
+        self.variable = var
+
+    def translate(self):
+        var = self.variable
+        return [f"{var.type.cname()} {var.name};"]
+
+
 class Assign(Statement):
     def __init__(self, target, expr):
         self.target = target
@@ -74,9 +83,11 @@ class BlockStatement(Statement):
 
 
 def inplace_statement(name, op):
+    my_name = name
+    my_op = op
     class InplaceStatement(Statement):
-        name = name
-        op = op
+        name = my_name
+        op = my_op
 
         def __init__(self, target, expr: E.Expression):
             self.target = target

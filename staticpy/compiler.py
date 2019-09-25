@@ -5,30 +5,27 @@ import platform
 
 import jinja2
 
-from .block import Block
+from .block import EmptyBlock
 from .session import new_session
 from . import macro as M, statement as S
-from .utils.objects import *
 
 
 class Compiler:
     def __init__(self):
         self.blocks = {}
         self.session = new_session()
-        self._template = None
+        self.templates = []
         self._pybind = False
 
-    @property
-    def template(self):
-        return self._template
-        
-    @template.setter
-    def template(self, value):
-        self.template = value
+    def add_template(self, suffix, template):
+        self.templates.append((suffix, template))
+
+    def get_block(self, name):
+        return self.blocks[name][0]
 
     def register_block(self, name, level=0):
         with self.session:
-            block = Block()
+            block = EmptyBlock()
         self.blocks[name] = (block, level)
         return block
 
@@ -43,8 +40,7 @@ class Compiler:
             for _, template in self.templates:
                 template.setup_before(self, self.session)
             if self._pybind:
-                with self.get_block("header"):
-                    M.defineM("PYBIND")
+                self.get_block("header").add_statement(M.defineM("PYBIND"))
             target(self, self.session)
             for _, template in self.templates:
                 template.setup_after(self, self.session)
@@ -58,7 +54,7 @@ class Compiler:
 
     def run(self, target, target_path, libname=None):
         build_path = self.ensure_build_path(target_path)
-        libname = libname or get_libname(target)
+        libname = libname   # or get_libname(target)
         self.setup(target)
         sources = []
         with self.session:

@@ -104,7 +104,7 @@ def load_global(vm: VM, name: str):
         "sp": sp,
     }
     try:
-        return global_items[name]
+        vm.push(global_items[name])
     except KeyError:
         raise NameError(f"Can't find global item `{name}`")
 
@@ -166,7 +166,7 @@ def jump_if_true_or_pop(vm: VM, offset: int):
 def jump_absolute(vm: VM, offset: int):
     from .vm import BlockType, Block
     def _continue_statement():
-        if offset != vm.session.current_block.extra_info("begin_offset"):
+        if offset != vm.session.current_block.extra_info["begin_offset"]:
             raise SyntaxError("Unexpected JUMP_ABSOLUTE target")
         if vm.instructions[offset+2].opcode == constant.POP_BLOCK:
             # end of loop
@@ -176,8 +176,8 @@ def jump_absolute(vm: VM, offset: int):
 
     def _else_statement():
         # JUMP_ABSOLUTE at the end of IF
-        vm.instruments[vm.IP+2].inject_before(lambda: vm.push_block(Block(BlockType.Else)), ())
-        vm.instruments[offset-2].inject_after(pop_block, (vm, None))
+        vm.instructions[vm.IP+2].inject_before(lambda: vm.push_block(Block(BlockType.Else)), ())
+        vm.instructions[offset-2].inject_after(pop_block, (vm, None))
 
     current_block = vm.session.current_block
     if current_block.type == BlockType.Loop:
@@ -192,10 +192,10 @@ def pop_jump_if_false(vm: VM, offset: int):
     """
     POP_JUMP_IF_FALSE can be used in either an "if" statement
     or a "while" statement.
-    
+
     The circumstances of a "while" statement meets the following
     requirements:
-    
+
     1. there is a SETUP_LOOP before but the loop type is not determined
     2. target of the jump is a POP_BLOCK statement
     3. right before POP_BLOCK there is a JUMP_ABSOLUTE targeting
@@ -204,6 +204,7 @@ def pop_jump_if_false(vm: VM, offset: int):
     from .vm import Block, BlockType
     condition = vm.pop()
     target = vm.instructions[offset - 2]
+
     def _if_statement():
         block = Block(BlockType.Condition)
         block.extra_info = {
@@ -221,22 +222,22 @@ def pop_jump_if_false(vm: VM, offset: int):
             else:
                 raise SyntaxError("Unexected JUMP target")
         vm.push_block(block)
-    
+
     def _while_statement():
-        block.extra_info = {
+        block.extra_info.update({
             "type": "while",
             "condition": condition,
-        }
-        vm.instruments[vm.IP-2].mute()   # mute the last abundant JUMP_ABSOLUTE
-    
+        })
+        target.mute()   # mute the last abundant JUMP_ABSOLUTE
+
     block = vm.session.current_block
     cond1 = block.type == BlockType.Loop and not block.extra_info.get('type')
     cond2 = target.opcode == constant.POP_BLOCK
-    cond3 = vm.instruments[vm.IP-2].opcode == constant.JUMP_ABSOLUTE
+    cond3 = vm.instructions[vm.IP-2].opcode == constant.JUMP_ABSOLUTE
     if cond1 and cond2 and cond3:
         _while_statement()
     else:
-        _if_statemtent()
+        _if_statement()
 
 
 def pop_jump_if_true(vm: VM, _):
@@ -257,20 +258,21 @@ def get_iter(vm: VM, _):
     vm.push(("range", start, stop, step))
 
 
-def for_iter(vm: VM, n: int):
+def for_iter(vm: VM, offset: int):
     _, start, stop, step = vm.pop()
     vm.IP += 2
     if vm.current_instruction.opcode != constant.STORE_FAST:
         raise SyntaxError("Can't recognize opcode {opcode}({opname}) after FOR_ITER".format(
                           opcode=vm.current_instruction.opcode, opname=vm.current_instruction.opname))
     iter_var = vm.get_variable(vm.current_instruction.argval)
-    vm.session.current_block.extra_info = {
+    vm.session.current_block.extra_info.update({
         "type": "for",
         "start": start,
         "stop": stop,
         "step": step,
         "variable": iter_var,
-    }
+    })
+    vm.instructions[offset - 2].mute()   # mute the last abundant JUMP_ABSOLUTE
 
 
 def call_function(vm: VM, nargs: int):
@@ -309,8 +311,8 @@ def inplace_operation(expression):
     def fn(vm: VM, _):
         item1, item2 = vm.popn(2)
         result = expression(item1, item2)
-        vm.push(result)
-        store_inst = vm.instructions[IP+2]
+        vm.add_statement(result)
+        store_inst = vm.instructions[vm.IP+2]
         if store_inst.opcode != constant.STORE_FAST:
             raise RuntimeError("Expect STORE_FAST right after inplace operation")
         store_inst.mute()
@@ -378,7 +380,6 @@ end_finally = not_implemented
 pop_except = not_implemented
 delete_name = not_implemented
 unpack_sequence = not_implemented
-for_iter = not_implemented
 unpack_ex = not_implemented
 delete_attr = not_implemented
 store_global = not_implemented

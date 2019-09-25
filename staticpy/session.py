@@ -1,7 +1,8 @@
 class Session:
     def __init__(self):
         self.blocks = []
-        self.pure = True
+        self.functions = []
+        self.classes = []
 
     @property
     def current_block(self):

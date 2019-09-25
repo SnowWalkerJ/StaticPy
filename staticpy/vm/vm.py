@@ -3,24 +3,26 @@ import dis
 import enum
 import inspect
 import itertools
+from typing import List
 
 from ..session import get_session, new_session
+from ..type import *
 from .. import statement as S, block as B
 from . import constant
 
 
-class BlockType(enum.IntEnum):
-    Class = enum.auto
-    Function = enum.auto
-    Loop = enum.auto
-    Condition = enum.auto
-    Else = enum.auto
-    Try = enum.auto
-    Except = enum.auto
-    Finally = enum.auto
+class BlockType(enum.Enum):
+    Class = enum.auto()
+    Function = enum.auto()
+    Loop = enum.auto()
+    Condition = enum.auto()
+    Else = enum.auto()
+    Try = enum.auto()
+    Except = enum.auto()
+    Finally = enum.auto()
 
 
-class LoopType(enum.IntEnum):
+class LoopType(enum.Enum):
     ForRange = enum.auto
     While = enum.auto
 
@@ -51,7 +53,7 @@ class Block:
             else:
                 return B.While(condition=self.extra_info['condition'], statements=self.statements)
         elif self.type == BlockType.Function:
-            raise NotImplementedError
+            return B.Function(statements=self.statements, **self.extra_info)
         elif self.type == BlockType.Class:
             raise NotImplementedError
         else:
@@ -88,13 +90,21 @@ class WrappedInstruction:
     def argval(self):
         return self.instruction.argval
 
+    @property
+    def starts_line(self):
+        return self.instruction.starts_line
+
+    @property
+    def is_jump_target(self):
+        return self.instruction.is_jump_target
+
     def inject_before(self, func, args=(), kwargs={}):
         self.hooks_before.append((func, args, kwargs))
 
     def inject_after(self, func, args=(), kwargs={}):
         self.hooks_after.append((func, args, kwargs))
 
-    def mute(self, opcode, argval):
+    def mute(self):
         self.inst_tuple = constant.NOP, None
 
     def reset(self):
@@ -118,10 +128,9 @@ class WrappedInstruction:
 
 class VM(abc.ABC):
     def __init__(self):
-        self.block_stack = []
         self.data_stack = []
         self.statements = []
-        self.__variables = {}
+        self._variables = {}
         self.__instructions = {}
         self.__ip = 0
         self.__session = new_session()
@@ -154,7 +163,7 @@ class VM(abc.ABC):
         return getattr(handlers, opname.lower())
 
     def get_variable(self, name):
-        return self.__variables[name]
+        return self._variables[name]
 
     def add_statement(self, stmt):
         self.session.current_block.add_statement(stmt)
@@ -176,7 +185,7 @@ class VM(abc.ABC):
         return self.__instructions[self.IP]
 
     @property
-    def instructions(self) -> list[WrappedInstruction]:
+    def instructions(self) -> List[WrappedInstruction]:
         return self.__instructions
 
     @property
@@ -194,37 +203,42 @@ class FunctionVM(VM):
 
     def run(self):
         self.resolve_signature()
-        self.setup_variables()
         self.setup_block()
+        self.setup_variables()
         self.setup_instructions()
         self.IP = 0
-        while self.IP <= max(self.__instructions.keys()):
+        first_line = inspect.getsourcelines(self.func)[1]
+        while self.IP <= max(self.instructions.keys()):
             instruction = self.current_instruction
-            opcode = instruction.opcode
-            argval = instruction.argval
-            offset = instruction.offset
+            # opcode = instruction.opcode
+            # argval = instruction.argval
+            # offset = instruction.offset
             starts_line = instruction.starts_line
-            is_jump_target = instruction.is_jump_target
+            # is_jump_target = instruction.is_jump_target
             if starts_line is not None:
-                self.add_source(starts_line)
-            print(instruction)
+                self.add_source(starts_line - first_line)
+            print(instruction.instruction)
+            # import ipdb; ipdb.set_trace()
             instruction.run(self)
             self.IP += 2
 
     def setup_instructions(self):
         for instruction in dis.get_instructions(self.code):
             offset = instruction.offset
-            self.__instructions[offset] = WrappedInstruction(instruction)
+            self.instructions[offset] = WrappedInstruction(instruction)
 
     def setup_variables(self):
         from .. import variable as V
         untyped_variables = set(self.func.__code__.co_varnames)
-        for name, type in itertools.chain(self.inputs, self.resolve_annotations()):
+        local_variables = self.resolve_annotations()
+        for type, name in itertools.chain(self.inputs, local_variables):
             untyped_variables.remove(name)
-            self.__variables[name] = V.Variable(name, type=type, init=None, block='')
+            self._variables[name] = V.Variable(name, type=type)
         if untyped_variables:
             raise TypeError("The following variables are untyped:\n    {}"
                             .format(untyped_variables))
+        for _, name in local_variables:
+            self.add_statement(S.VariableDeclaration(self.get_variable(name)))
 
     def setup_block(self):
         block = Block(BlockType.Function)
@@ -232,8 +246,8 @@ class FunctionVM(VM):
             "name": self.func.__name__,
             "output": self.output,
             "inputs": self.inputs,
-            "is_method": self.__is_method",
-            "is_cconstructor": self.__is_constructor,
+            "is_method": self.__is_method,
+            "is_constructor": self.__is_constructor,
         }
         self.push_block(block)
 
@@ -251,7 +265,7 @@ class FunctionVM(VM):
                 type = eval(annotation)
                 variables.append((type, varname))
         return variables
- 
+
     def resolve_signature(self):
         sig = inspect.signature(self.func)
         ret_type = sig.return_annotation
@@ -264,10 +278,11 @@ class FunctionVM(VM):
         self.output = ret_type
 
     def add_source(self, line):
+        source = self.source.split("\n")
         self.add_statement(S.BlockComment([
-            "    " + self.source[line - 1],
-            ">>> " + self.source[line],
-            "    " + self.source[line + 1],
+            "    " + source[line - 1] if line >= 1 else "",
+            ">>> " + source[line],
+            "    " + source[line + 1],
         ]))
 
     @property
