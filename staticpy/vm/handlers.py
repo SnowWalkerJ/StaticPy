@@ -286,7 +286,7 @@ def store_subscr(vm: VM, _):
 
 def pop_block(vm: VM, _):
     block = vm.pop_block()
-    vm.add_statement(S.BlockStatement(block))
+    vm.add_statement(S.BlockStatement(block.realize()))
 
 
 def unary_operation(expression):
