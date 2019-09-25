@@ -203,7 +203,7 @@ def pop_jump_if_false(vm: VM, offset: int):
     """
     from .vm import Block, BlockType
     condition = vm.pop()
-    target = vm.instructions[offset - 2]
+    target = vm.instructions[offset]
 
     def _if_statement():
         block = Block(BlockType.Condition)
@@ -213,7 +213,7 @@ def pop_jump_if_false(vm: VM, offset: int):
             "end_offset": offset - 2,
         }
         if offset > vm.IP:
-            target.inject_after(pop_block, (vm, None))
+            vm.instructions[offset - 2].inject_after(pop_block, (vm, None))
         else:
             if vm.session.current_block.type == BlockType and \
                     offset == vm.session.current_block.extra_info['begin_offset']:
@@ -228,12 +228,12 @@ def pop_jump_if_false(vm: VM, offset: int):
             "type": "while",
             "condition": condition,
         })
-        target.mute()   # mute the last abundant JUMP_ABSOLUTE
+        vm.instructions[offset - 2].mute()   # mute the last abundant JUMP_ABSOLUTE
 
     block = vm.session.current_block
     cond1 = block.type == BlockType.Loop and not block.extra_info.get('type')
     cond2 = target.opcode == constant.POP_BLOCK
-    cond3 = vm.instructions[vm.IP-2].opcode == constant.JUMP_ABSOLUTE
+    cond3 = vm.instructions[offset - 2].opcode == constant.JUMP_ABSOLUTE
     if cond1 and cond2 and cond3:
         _while_statement()
     else:
