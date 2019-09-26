@@ -42,7 +42,7 @@ class Block:
         elif self.type == BlockType.Else:
             return B.Else(statements=self.statements)
         elif self.type == BlockType.Loop:
-            if self.extra_info['type'] == "for":
+            if self.extra_info['type'] == LoopType.ForRange:
                 return B.For(
                     statements=self.statements,
                     variable=self.extra_info['variable'],
@@ -50,7 +50,7 @@ class Block:
                     stop=self.extra_info['stop'],
                     step=self.extra_info['step'],
                 )
-            else:
+            elif self.extra_info['type'] == LoopType.While:
                 return B.While(condition=self.extra_info['condition'], statements=self.statements)
         elif self.type == BlockType.Function:
             return B.Function(statements=self.statements, **self.extra_info)
@@ -128,6 +128,7 @@ class WrappedInstruction:
 
 class VM(abc.ABC):
     def __init__(self):
+        self.blocks = {}
         self.data_stack = []
         self.statements = []
         self._variables = {}
@@ -249,6 +250,7 @@ class FunctionVM(VM):
             "is_method": self.__is_method,
             "is_constructor": self.__is_constructor,
         }
+        self.blocks['root'] = block
         self.push_block(block)
 
     def resolve_annotations(self):
