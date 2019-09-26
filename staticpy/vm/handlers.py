@@ -291,6 +291,11 @@ def pop_block(vm: VM, _):
     vm.add_statement(S.BlockStatement(block.realize()))
 
 
+def import_star(vm: VM, _):
+    name = vm.pop()
+    vm.add_statement(S.UsingNamespace(name))
+
+
 def unary_operation(expression):
     def fn(vm: VM, _):
         item = vm.pop()
@@ -373,7 +378,6 @@ inplace_xor = inplace_operation(S.InplaceXor)
 inplace_or = inplace_operation(S.InplaceOr)
 with_cleanup_start = not_implemented
 with_cleanup_stop = not_implemented
-import_star = not_implemented
 setup_annotations = not_implemented
 yield_value = not_implemented
 end_finally = not_implemented
