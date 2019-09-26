@@ -201,7 +201,7 @@ def pop_jump_if_false(vm: VM, offset: int):
     3. right before POP_BLOCK there is a JUMP_ABSOLUTE targeting
     after SETUP_LOOP
     """
-    from .vm import Block, BlockType
+    from .vm import Block, BlockType, LoopType
     condition = vm.pop()
     target = vm.instructions[offset]
 
@@ -225,7 +225,7 @@ def pop_jump_if_false(vm: VM, offset: int):
 
     def _while_statement():
         block.extra_info.update({
-            "type": "while",
+            "type": LoopType.While,
             "condition": condition,
         })
         vm.instructions[offset - 2].mute()   # mute the last abundant JUMP_ABSOLUTE
@@ -259,6 +259,7 @@ def get_iter(vm: VM, _):
 
 
 def for_iter(vm: VM, offset: int):
+    from .vm import LoopType
     _, start, stop, step = vm.pop()
     vm.IP += 2
     if vm.current_instruction.opcode != constant.STORE_FAST:
@@ -266,7 +267,7 @@ def for_iter(vm: VM, offset: int):
                           opcode=vm.current_instruction.opcode, opname=vm.current_instruction.opname))
     iter_var = vm.get_variable(vm.current_instruction.argval)
     vm.session.current_block.extra_info.update({
-        "type": "for",
+        "type": LoopType.ForRange,
         "start": start,
         "stop": stop,
         "step": step,
@@ -294,6 +295,25 @@ def pop_block(vm: VM, _):
 def import_star(vm: VM, _):
     name = vm.pop()
     vm.add_statement(S.UsingNamespace(name))
+
+
+def setup_with(vm: VM, _):
+    name = vm.pop()
+    block = self.get_block(name)
+    vm.push(None)        # return value of __enter__
+    self.push_block(block)
+
+
+def with_cleanup_start(vm: VM, _):
+    pass
+
+
+def with_cleanup_finish(vm: VM, _):
+    pass
+
+
+def end_finally(vm: VM, _):
+    pass
 
 
 def unary_operation(expression):
@@ -376,11 +396,8 @@ inplace_rshift = inplace_operation(S.InplaceRShift)
 inplace_and = inplace_operation(S.InplaceAnd)
 inplace_xor = inplace_operation(S.InplaceXor)
 inplace_or = inplace_operation(S.InplaceOr)
-with_cleanup_start = not_implemented
-with_cleanup_stop = not_implemented
 setup_annotations = not_implemented
 yield_value = not_implemented
-end_finally = not_implemented
 pop_except = not_implemented
 delete_name = not_implemented
 unpack_sequence = not_implemented
@@ -401,7 +418,6 @@ store_deref = not_implemented
 delete_deref = not_implemented
 call_function_kw = not_implemented
 call_function_ex = not_implemented
-setup_with = not_implemented
 list_append = not_implemented
 set_add = not_implemented
 map_add = not_implemented
