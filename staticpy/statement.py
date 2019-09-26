@@ -19,6 +19,14 @@ class VariableDeclaration(Statement):
         return [f"{var.type.cname()} {var.name};"]
 
 
+class UsingNamespace(Statement):
+    def __init__(self, namespace):
+        self.namespace = namespace
+
+    def translate(self):
+        return [f"using namespace {self.namespace};"]
+    
+
 class Assign(Statement):
     def __init__(self, target, expr):
         self.target = target
