@@ -18,7 +18,7 @@ def rot_two(vm: VM, _):
     vm.pushn(b, a)
 
 
-def ROT_THREE(vm: VM, _):
+def rot_three(vm: VM, _):
     a, b, c = vm.popn(3)
     vm.pushn(c, a, b)
 
@@ -289,7 +289,8 @@ def store_subscr(vm: VM, _):
 
 def pop_block(vm: VM, _):
     block = vm.pop_block()
-    vm.add_statement(S.BlockStatement(block.realize()))
+    if not block.external:
+        vm.add_statement(S.BlockStatement(block.realize()))
 
 
 def import_star(vm: VM, _):
