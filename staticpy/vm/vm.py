@@ -12,6 +12,7 @@ from . import constant
 
 
 class BlockType(enum.Enum):
+    Empty = enum.auto()
     Class = enum.auto()
     Function = enum.auto()
     Loop = enum.auto()
@@ -28,16 +29,19 @@ class LoopType(enum.Enum):
 
 
 class Block:
-    def __init__(self, type=None):
+    def __init__(self, type=None, external=False):
         self.type = type
         self.statements = []
         self.extra_info = {}
+        self.external = external
 
     def add_statement(self, stmt):
         self.statements.append(stmt)
 
     def realize(self) -> B.Block:
-        if self.type == BlockType.Condition:
+        if self.type == BlockType.Empty:
+            return B.EmptyBlock(statements=self.statements)
+        elif self.type == BlockType.Condition:
             return B.If(condition=self.extra_info['condition'], statements=self.statements)
         elif self.type == BlockType.Else:
             return B.Else(statements=self.statements)
@@ -219,7 +223,6 @@ class FunctionVM(VM):
             if starts_line is not None:
                 self.add_source(starts_line - first_line)
             print(instruction.instruction)
-            # import ipdb; ipdb.set_trace()
             instruction.run(self)
             self.IP += 2
 
@@ -242,7 +245,7 @@ class FunctionVM(VM):
             self.add_statement(S.VariableDeclaration(self.get_variable(name)))
 
     def setup_block(self):
-        block = Block(BlockType.Function)
+        block = Block(BlockType.Function, external=True)
         block.extra_info = {
             "name": self.func.__name__,
             "output": self.output,
@@ -252,6 +255,12 @@ class FunctionVM(VM):
         }
         self.blocks['root'] = block
         self.push_block(block)
+        
+    def get_block(self, name):
+        name = name.name
+        if name not in self.blocks:
+            self.blocks[name] = Block(BlockType.Empty, external=True)
+        return self.block(name)
 
     def resolve_annotations(self):
         """Resolve in-function annotations with regex"""
