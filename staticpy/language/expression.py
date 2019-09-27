@@ -2,6 +2,7 @@ import abc
 
 from .value import Value
 from . import type as T
+from ..util.string import stringify_arguments
 
 
 class Expression(Value):
@@ -185,6 +186,16 @@ class GetItem(Expression):
 
     def __str__(self):
         return f"{self.obj}[{self.index}]"
+
+
+class TemplateInstantiate(Expression):
+    def __init__(self, name, *args):
+        self.name = name
+        self.args = args
+
+    def __str__(self):
+        args = "<" + stringify_arguments(self.args) + ">"
+        return self.name + args
 
 
 class Cast(Expression):
