@@ -167,3 +167,18 @@ def returns(expr):
 @auto_add
 def assign(var, expr):
     return Assign(var, expr)
+
+
+@auto_add
+def using_namespace(name):
+    return UsingNamespace(name)
+
+
+@auto_add
+def comment(text):
+    if isinstance(text, str) and "\n" in text:
+        text = text.split()
+    if isinstance(text, list):
+        return BlockComment(text)
+    else:
+        return SingleLineComment(text)
