@@ -6,8 +6,8 @@ import itertools
 from typing import List
 
 from ..session import get_session, new_session
-from ..language.type import *
-from ..language import statement as S, block as B
+from ..lang.type import *
+from ..lang import statement as S, block as B
 from . import constant
 
 
@@ -232,7 +232,7 @@ class FunctionVM(VM):
             self.instructions[offset] = WrappedInstruction(instruction)
 
     def setup_variables(self):
-        from ..language import variable as V
+        from ..lang import variable as V
         untyped_variables = set(self.func.__code__.co_varnames)
         local_variables = self.resolve_annotations()
         for type, name in itertools.chain(self.inputs, local_variables):

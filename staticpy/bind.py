@@ -4,7 +4,7 @@ from enum import Enum
 import types
 from inspect import getdoc, getmembers
 
-from .language import (
+from .lang import (
     block as B,
     statement as S,
     expression as E,

@@ -6,7 +6,7 @@ import platform
 import jinja2
 
 from .session import new_session
-from .language import macro as M, statement as S, block as B
+from .lang import macro as M, statement as S, block as B
 
 
 class Compiler:
