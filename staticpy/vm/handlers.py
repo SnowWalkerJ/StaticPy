@@ -3,8 +3,8 @@ import inspect
 
 from . import constant
 from .vm import VM
-from .. import statement as S
-from .. import expression as E
+from ..language import statement as S
+from ..language import expression as E
 
 
 def pop_top(vm: VM, _):

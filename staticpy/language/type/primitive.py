@@ -1,4 +1,4 @@
-from ..session import get_session
+from ...session import get_session
 from .base import TypeBase
 # from .array import ArrayType
 

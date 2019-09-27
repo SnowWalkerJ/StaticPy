@@ -1,18 +1,19 @@
 class Session:
     def __init__(self):
-        self.blocks = []
+        self.blocks = {}
+        self.block_stack = []
         self.functions = []
         self.classes = []
 
     @property
     def current_block(self):
-        return self.blocks[-1]
+        return self.block_stack[-1]
 
     def push_block(self, block):
-        self.blocks.append(block)
+        self.block_stack.append(block)
 
     def pop_block(self):
-        return self.blocks.pop()
+        return self.block_stack.pop()
 
     def __enter__(self):
         global __sessions

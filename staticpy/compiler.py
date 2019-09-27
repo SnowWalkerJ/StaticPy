@@ -5,9 +5,8 @@ import platform
 
 import jinja2
 
-from .block import EmptyBlock
 from .session import new_session
-from . import macro as M, statement as S
+from .language import macro as M, statement as S, block as B
 
 
 class Compiler:
@@ -25,7 +24,7 @@ class Compiler:
 
     def register_block(self, name, level=0):
         with self.session:
-            block = EmptyBlock()
+            block = B.EmptyBlock()
         self.blocks[name] = (block, level)
         return block
 

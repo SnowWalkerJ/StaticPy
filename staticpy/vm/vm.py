@@ -6,8 +6,8 @@ import itertools
 from typing import List
 
 from ..session import get_session, new_session
-from ..type import *
-from .. import statement as S, block as B
+from ..language.type import *
+from ..language import statement as S, block as B
 from . import constant
 
 
@@ -24,8 +24,8 @@ class BlockType(enum.Enum):
 
 
 class LoopType(enum.Enum):
-    ForRange = enum.auto
-    While = enum.auto
+    ForRange = enum.auto()
+    While = enum.auto()
 
 
 class Block:
@@ -212,17 +212,17 @@ class FunctionVM(VM):
         self.setup_variables()
         self.setup_instructions()
         self.IP = 0
-        first_line = inspect.getsourcelines(self.func)[1]
+        # first_line = inspect.getsourcelines(self.func)[1]
         while self.IP <= max(self.instructions.keys()):
             instruction = self.current_instruction
             # opcode = instruction.opcode
             # argval = instruction.argval
             # offset = instruction.offset
-            starts_line = instruction.starts_line
+            # starts_line = instruction.starts_line
             # is_jump_target = instruction.is_jump_target
-            if starts_line is not None:
-                self.add_source(starts_line - first_line)
-            print(instruction.instruction)
+            # if starts_line is not None:
+            #     self.add_source(starts_line - first_line)
+            # print(instruction.instruction)
             instruction.run(self)
             self.IP += 2
 
@@ -232,7 +232,7 @@ class FunctionVM(VM):
             self.instructions[offset] = WrappedInstruction(instruction)
 
     def setup_variables(self):
-        from .. import variable as V
+        from ..language import variable as V
         untyped_variables = set(self.func.__code__.co_varnames)
         local_variables = self.resolve_annotations()
         for type, name in itertools.chain(self.inputs, local_variables):
@@ -255,12 +255,12 @@ class FunctionVM(VM):
         }
         self.blocks['root'] = block
         self.push_block(block)
-        
+
     def get_block(self, name):
         name = name.name
         if name not in self.blocks:
             self.blocks[name] = Block(BlockType.Empty, external=True)
-        return self.block(name)
+        return self.blocks[name]
 
     def resolve_annotations(self):
         """Resolve in-function annotations with regex"""
@@ -290,11 +290,7 @@ class FunctionVM(VM):
 
     def add_source(self, line):
         source = self.source.split("\n")
-        self.add_statement(S.BlockComment([
-            "    " + source[line - 1] if line >= 1 else "",
-            ">>> " + source[line],
-            "    " + source[line + 1],
-        ]))
+        self.add_statement(S.SingleLineComment(source[line].strip()))
 
     @property
     def source(self):
