@@ -25,6 +25,14 @@ class UsingNamespace(Statement):
 
     def translate(self):
         return [f"using namespace {self.namespace};"]
+
+
+class SimpleStatement(Statement):
+    def __init__(self, stmt: str):
+        self.statement = stmt
+ 
+    def translate(self):
+        return [self.statement]
     
 
 class Assign(Statement):
@@ -182,3 +190,8 @@ def comment(text):
         return BlockComment(text)
     else:
         return SingleLineComment(text)
+
+
+@auto_add
+def statement(stmt):
+    return SimpleStatement(stmt)
