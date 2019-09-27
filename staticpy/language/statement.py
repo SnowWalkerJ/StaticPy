@@ -145,3 +145,25 @@ InplaceOr = inplace_statement("InplaceOr", "|=")
 
 def from_expression(expr):
     return ExpressionStatement(expr)
+
+
+def auto_add(fn):
+    from ..session import get_session
+    @functools.wraps(fn):
+    def wrapped(*args, **kwargs):
+        stmt = fn(*args, **kwargs)
+        get_session().add_statement(stmt)
+    return wrapped
+
+
+as_statement = auto_add(from_expression)
+
+
+@auto_add
+def returns(expr):
+    return ReturnValue(expr)
+
+
+@auto_add
+def assign(var, expr):
+    return Assign(var, expr)
