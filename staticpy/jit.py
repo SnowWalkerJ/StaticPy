@@ -5,6 +5,7 @@ import sys
 
 from .template import CppTemplate
 from .bind import PyBindFunction, PyBindFunctionGroup
+from .common.options import get_option
 from .compiler import Compiler
 from .vm import FunctionVM
 from .session import new_session
@@ -40,13 +41,16 @@ class JitFunction(Function):
         self._compile(sess)
 
     def load(self):
+        module_name = "lib" + self.name
+        if module_name in sys.modules:
+            del sys.modules[module_name]
         sys.path.insert(0, self._target_path)
-        module = importlib.import_module("lib" + self.name)
+        module = importlib.import_module(module_name)
         self._compiled_func = getattr(module, self.name)
 
     def __call__(self, *args):
         if not self._compiled:
-            if self._need_update():
+            if get_option("force_compile", False) or self._need_update():
                 self.compile()
             self.load()
             self._compiled = True

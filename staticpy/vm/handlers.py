@@ -375,7 +375,9 @@ def ternary_operation(expression):
 
 
 def not_implemented(vm: VM, _):
-    raise NotImplementedError
+    import dis
+    dis.dis(vm.func)
+    raise NotImplementedError(vm.current_instruction)
 
 
 unary_positive = unary_operation(E.UnaryPositive)
@@ -434,7 +436,7 @@ raise_varargs = not_implemented
 make_function = not_implemented
 build_slice = not_implemented
 load_closure = not_implemented
-load_deref = not_implemented
+load_deref = load_global
 store_deref = not_implemented
 delete_deref = not_implemented
 call_function_kw = not_implemented
