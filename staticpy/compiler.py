@@ -6,11 +6,10 @@ import platform
 import jinja2
 
 from .session import new_session
+from .util.string import get_target_filepath
 from .lang import macro as M, statement as S, block as B
 
-
 from .lang.common import get_block_or_create
-from .lang import macro as M
 
 
 class Compiler:
@@ -42,9 +41,8 @@ class Compiler:
 
     def compile(self, target_path, libname, sources):
         sources = " ".join(sources)
-        suffix = os.popen("python3-config --extension-suffix")._stream.read().strip("\n")
         includes = os.popen("python3 -m pybind11 --includes")._stream.read().strip("\n")
-        output_filename = os.path.join(target_path, libname + suffix)
+        output_filename = get_target_filepath(target_path, libname)
         command = f"c++ -O3 -Wall -shared -std=c++11 -fPIC {includes} {sources} -o {output_filename}"
         if platform.system() == "Darwin":
             command += " -undefined dynamic_lookup"

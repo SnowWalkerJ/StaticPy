@@ -3,6 +3,7 @@ import inspect
 
 from . import constant
 from .vm import VM
+from .builtin import search_builtin
 from ..lang import (
     statement as S,
     expression as E,
@@ -85,7 +86,9 @@ def store_attr(vm: VM, attr):
 
 
 def load_const(vm: VM, value):
-    vm.push(E.Const(value))
+    if value is not None:
+        value = E.Const(value)
+    vm.push(value)
 
 
 def load_fast(vm: VM, name):
@@ -101,16 +104,12 @@ def load_name(vm: VM, name: str):
 
 
 def load_global(vm: VM, name: str):
-    # TODO: needs refactor
-    import staticpy as sp
-    global_items = {
-        "range": range,
-        "sp": sp,
-    }
     try:
-        vm.push(global_items[name])
-    except KeyError:
-        raise NameError(f"Can't find global item `{name}`")
+        value = search_builtin(name)
+    except NameError:
+        value = V.Name(name)
+    vm.push(value)
+
 
 def load_attr(vm: VM, name):
     vm.push(E.GetAttr(vm.pop(), name))
@@ -134,7 +133,12 @@ def build_set(vm: VM, n: int):
 
 
 def return_value(vm: VM, _):
-    vm.add_statement(S.ReturnValue(vm.pop()))
+    # NOTE: this assumes the vm has output attributes,
+    # which is only true when it's a FunctionVM
+    retval = vm.pop()
+    if vm.output is not None and retval is None:
+        return
+    vm.add_statement(S.ReturnValue(retval))
 
 
 def jump_forward(vm: VM, offset: int):
@@ -251,7 +255,7 @@ def pop_jump_if_true(vm: VM, _):
 
 def get_iter(vm: VM, _):
     item = vm.pop()
-    if item.func != range:
+    if item.func != V.Name("range"):
         raise NotImplementedError("Currently only for-range is supported")
     args = item.args
     if len(args) == 1:
@@ -284,7 +288,12 @@ def for_iter(vm: VM, offset: int):
 def call_function(vm: VM, nargs: int):
     args = vm.popn(nargs)
     func = vm.pop()
-    vm.push(E.CallFunction(func, args))
+    if inspect.isfunction(func):
+        with vm.session:
+            result = func(*args)
+    else:
+        result = E.CallFunction(func, args)
+    vm.push(result)
 
 
 def store_subscr(vm: VM, _):

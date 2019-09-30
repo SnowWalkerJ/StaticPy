@@ -129,6 +129,12 @@ class WrappedInstruction:
         for func, args, kwargs in self.hooks_after:
             func(*args, **kwargs)
 
+    def __str__(self):
+        return f"{self.opname} {self.argval}"
+
+    def __repr__(self):
+        return f"{self.opname} {self.argval}"
+
 
 class VM(abc.ABC):
     def __init__(self, session=None):

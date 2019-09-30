@@ -8,6 +8,7 @@ from .bind import PyBindFunction, PyBindFunctionGroup
 from .compiler import Compiler
 from .vm import FunctionVM
 from .session import new_session
+from .util.string import get_target_filepath
 from .lang.common import get_block_or_create
 from .lang import statement as S, macro as M
 
@@ -45,7 +46,8 @@ class JitFunction(Function):
 
     def __call__(self, *args):
         if not self._compiled:
-            self.compile()
+            if self._need_update():
+                self.compile()
             self.load()
             self._compiled = True
         return self._compiled_func(*args)
@@ -76,6 +78,17 @@ class JitFunction(Function):
         compiler = Compiler()
         compiler.add_template(".cpp", CppTemplate())
         compiler.run(sess, self._target_path, libname="lib" + self.name)
+
+    def _need_update(self):
+        targetfile = get_target_filepath(self._target_path, libname="lib" + self.name)
+        if not os.path.exists(targetfile):
+            return True
+        target_mtime = os.path.getmtime(targetfile)
+        for func in self.funcs:
+            sourcefile = inspect.getabsfile(func)
+            if os.path.getmtime(sourcefile) > target_mtime:
+                return True
+        return False
 
 
 def jit(obj):

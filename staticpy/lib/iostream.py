@@ -19,7 +19,6 @@ def cprint(*args, **kwargs):
         init = False
 
     expr = expr << endl
-    S.as_statement(expr)
     return expr
 
 

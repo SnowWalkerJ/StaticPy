@@ -31,10 +31,10 @@ In order to generate pure C++ code, numpy is not supported by StaticPy, which is
 ## Usage
 
 ```python
-from staticpy import jit
+from staticpy import jit, Int
 
 @jit
-def frac(n: int):
+def frac(n: Int) -> Int:
     if n == 0:
         return 1
     else:
