@@ -7,6 +7,7 @@ import jinja2
 
 from .session import new_session
 from .util.string import get_target_filepath
+from .common import logging
 from .lang import macro as M, statement as S, block as B
 
 from .lang.common import get_block_or_create
@@ -46,5 +47,5 @@ class Compiler:
         command = f"c++ -O3 -Wall -shared -std=c++11 -fPIC {includes} {sources} -o {output_filename}"
         if platform.system() == "Darwin":
             command += " -undefined dynamic_lookup"
-        print(command)
+        logging.info(command)
         os.system(command)

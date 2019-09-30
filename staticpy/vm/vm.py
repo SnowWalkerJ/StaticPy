@@ -227,7 +227,6 @@ class FunctionVM(VM):
             # is_jump_target = instruction.is_jump_target
             # if starts_line is not None:
             #     self.add_source(starts_line - first_line)
-            # print(instruction.instruction)
             instruction.run(self)
             self.IP += 2
         for i, block in enumerate(self.session.blocks):
