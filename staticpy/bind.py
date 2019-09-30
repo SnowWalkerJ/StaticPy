@@ -12,6 +12,7 @@ from .lang import (
     type as T,
     variable as V,
 )
+from .lang.common import get_block_or_create
 from .session import get_session
 
 
@@ -28,33 +29,8 @@ class PyBindModuleScope(B.Scope):
     def prefix(self):
         return f"PYBIND11_MODULE({self.name}, m) {{"
 
-
-class PyBindModule:
-    def __init__(self, module):
-        self.module = module
-
-    def setup(self, session):
-        with session.get_block("header"):
-            with M.ifdefBM("PYBIND"):
-                M.include("<pybind11/pybind11.h>")
-                S.statement("namespace py = pybind11;")
-        with session.get_block("footer"):
-            self.define()
-
-    def define(self):
-        m = V.Name("m")
-        with M.ifdefBM("PYBIND"):
-            block = PyBindModuleScope(self.module.__name__)
-            with block:
-                if self.doc:
-                    S.assign(V.Name("m.doc()"), self.doc)
-                for name, value in getmembers(self.module):
-                    value.bind(m)
-            get_session().current_block.add_statement(S.BlockStatement(block))
-
-    @property
-    def doc(self):
-        return getdoc(self.module)
+    def translate(self):
+        return super().translate()
 
 
 class BindObject(ABC):
@@ -66,6 +42,90 @@ class BindObject(ABC):
     def doc(self):
         return getdoc(self.obj) or ""
 
+    def setup(self, session):
+        with session:
+            with get_block_or_create("header"):
+                with M.ifdefBM("PYBIND"):
+                    M.include("<pybind11/pybind11.h>")
+                    S.statement("namespace py = pybind11;")
+            with get_block_or_create("footer"):
+                self.define()
+
     @abstractmethod
-    def bind(self, parent, namespace=None):
+    def define(self):
         pass
+
+
+class PyBindModule(BindObject):
+    def __init__(self, module):
+        super().__init__(module)
+
+    def define(self):
+        m = V.Name("m")
+        with M.ifdefBM("PYBIND"):
+            block = PyBindModuleScope(self.obj.__name__)
+            with block:
+                if self.doc:
+                    S.assign(V.Name("m.doc()"), self.doc)
+                for _, value in getmembers(self.obj):
+                    if isinstance(value, BindObject):
+                        value.bind(m)
+            get_session().current_block.add_statement(S.BlockStatement(block))
+
+
+class PyBindFunction(BindObject):
+    def __init__(self, name, inputs, output, is_method=False, is_constructor=False, doc=""):
+        self.name = name
+        self.inputs = inputs
+        self.output = output
+        self.is_method = is_method
+        self.is_constructor = is_constructor
+        self._doc = doc
+
+    def define(self):
+        m = V.Name("m")
+        with M.ifdefBM("PYBIND"):
+            block = PyBindModuleScope(self.obj.__name__)
+            with block:
+                if self.doc:
+                    S.assign(V.Name("m.doc()"), self.doc)
+                self.bind(m)
+            get_session().current_block.add_statement(S.BlockStatement(block))
+
+    def bind(self, parent, namespace=None):
+        if self.is_constructor:
+            template = E.ScopeAnalysis(V.Name("py"), V.Name("init"))
+            args = (V.Name(str(type)) for _, type in self.inputs)
+            args = (E.CallFunction(E.TemplateInstantiate(template, args), ()), )
+        else:
+            args = (self.name, self.address(namespace), self.doc)
+        S.as_statement(E.CallFunction(E.GetAttr(parent, "def"), args))
+
+    def address(self, namespace=None):
+        if namespace:
+            name = E.ScopeAnalysis(V.Name(namespace), V.Name(self.name))
+        else:
+            name = self.name
+        return E.AddressOf(V.Name(name))
+
+    @property
+    def doc(self):
+        return self._doc
+
+
+class PyBindFunctionGroup(PyBindFunction):
+    def __init__(self, name, functions, doc=""):
+        self.name = name
+        self._doc = doc
+        self.functions = functions
+
+    def define(self):
+        m = V.Name("m")
+        with M.ifdefBM("PYBIND"):
+            block = PyBindModuleScope(self.name)
+            with block:
+                if self.doc:
+                    S.assign(V.Name("m.doc()"), self.doc)
+                for func in self.functions:
+                    func.bind(m)
+            get_session().current_block.add_statement(S.BlockStatement(block))

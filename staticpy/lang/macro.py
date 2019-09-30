@@ -1,5 +1,6 @@
-from .session import get_session
-from .statement import Statement, auto_add
+from ..session import get_session
+from .statement import Statement
+from .common import auto_add
 from .block import Block
 
 
@@ -25,7 +26,7 @@ class IfDefMacro(Macro, Block):
 
     def translate(self):
         stmts = [f"#ifdef {self.symbol}"]
-        stmts.extend(super().translate())
+        stmts.extend(Block.translate(self))
         stmts.append("#endif")
         return stmts
 

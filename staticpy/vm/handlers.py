@@ -3,8 +3,12 @@ import inspect
 
 from . import constant
 from .vm import VM
-from ..lang import statement as S
-from ..lang import expression as E
+from ..lang import (
+    statement as S,
+    expression as E,
+    variable as V,
+    type as T,
+)
 
 
 def pop_top(vm: VM, _):
@@ -165,6 +169,7 @@ def jump_if_true_or_pop(vm: VM, offset: int):
 
 def jump_absolute(vm: VM, offset: int):
     from .vm import BlockType, Block
+
     def _continue_statement():
         if offset != vm.session.current_block.extra_info["begin_offset"]:
             raise SyntaxError("Unexpected JUMP_ABSOLUTE target")
@@ -288,8 +293,9 @@ def store_subscr(vm: VM, _):
 
 
 def pop_block(vm: VM, _):
+    from .vm import Block
     block = vm.pop_block()
-    if not block.external:
+    if isinstance(block, Block) and not block.external:
         vm.add_statement(S.BlockStatement(block.realize()))
 
 
@@ -298,11 +304,17 @@ def import_star(vm: VM, _):
     vm.add_statement(S.UsingNamespace(name))
 
 
+def import_from(vm: VM, name: str):
+    namespace = vm.pop()
+    variable = V.Variable(f"{namespace}::{name}", T.Void)
+    vm.popn(namespace, variable)
+
+
 def setup_with(vm: VM, _):
     name = vm.pop()
-    block = self.get_block(name)
+    block = vm.get_block(name)
     vm.push(None)        # return value of __enter__
-    self.push_block(block)
+    vm.push_block(block)
 
 
 def with_cleanup_start(vm: VM, _):
@@ -408,7 +420,6 @@ store_global = not_implemented
 delete_global = not_implemented
 build_map = not_implemented
 import_name = not_implemented
-import_from = not_implemented
 delete_fast = not_implemented
 raise_varargs = not_implemented
 make_function = not_implemented

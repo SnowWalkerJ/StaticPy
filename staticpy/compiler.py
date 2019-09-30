@@ -9,40 +9,16 @@ from .session import new_session
 from .lang import macro as M, statement as S, block as B
 
 
+from .lang.common import get_block_or_create
+from .lang import macro as M
+
+
 class Compiler:
     def __init__(self):
-        self.blocks = {}
-        self.session = new_session()
         self.templates = []
-        self._pybind = False
 
     def add_template(self, suffix, template):
         self.templates.append((suffix, template))
-
-    def get_block(self, name):
-        return self.blocks[name][0]
-
-    def register_block(self, name, level=0):
-        with self.session:
-            block = B.EmptyBlock()
-        self.blocks[name] = (block, level)
-        return block
-
-    def enable_pybind(self):
-        self._pybind = True
-
-    def disable_pybind(self):
-        self._pybind = False
-
-    def setup(self, target):
-        with self.session:
-            for _, template in self.templates:
-                template.setup_before(self, self.session)
-            if self._pybind:
-                self.get_block("header").add_statement(M.defineM("PYBIND"))
-            target(self, self.session)
-            for _, template in self.templates:
-                template.setup_after(self, self.session)
 
     @staticmethod
     def ensure_build_path(target_path):
@@ -51,15 +27,14 @@ class Compiler:
             os.makedirs(build_path)
         return build_path
 
-    def run(self, target, target_path, libname=None):
+    def run(self, session, target_path, libname):
         build_path = self.ensure_build_path(target_path)
-        libname = libname   # or get_libname(target)
-        self.setup(target)
+        libname = libname
         sources = []
-        with self.session:
+        with session:
             for suffix, template in self.templates:
                 target_filename = os.path.join(build_path, libname + suffix)
-                source = template.render(self.blocks, libname)
+                source = template.render(session)
                 with open(target_filename, "w") as f:
                     f.write(source)
                 sources.append(target_filename)
@@ -75,9 +50,3 @@ class Compiler:
             command += " -undefined dynamic_lookup"
         print(command)
         os.system(command)
-
-    def __enter__(self):
-        return self.session.__enter__()
-
-    def __exit__(self, *args):
-        return self.session.__exit__(*args)

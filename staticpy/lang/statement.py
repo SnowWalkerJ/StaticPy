@@ -2,6 +2,7 @@ import abc
 import typing
 
 from . import expression as E
+from .common import auto_add
 
 
 class Statement(abc.ABC):
@@ -30,10 +31,10 @@ class UsingNamespace(Statement):
 class SimpleStatement(Statement):
     def __init__(self, stmt: str):
         self.statement = stmt
- 
+
     def translate(self):
         return [self.statement]
-    
+
 
 class Assign(Statement):
     def __init__(self, target, expr):
@@ -101,6 +102,7 @@ class BlockStatement(Statement):
 def inplace_statement(name, op):
     my_name = name
     my_op = op
+
     class InplaceStatement(Statement):
         name = my_name
         op = my_op
@@ -153,15 +155,6 @@ InplaceOr = inplace_statement("InplaceOr", "|=")
 
 def from_expression(expr):
     return ExpressionStatement(expr)
-
-
-def auto_add(fn):
-    from ..session import get_session
-    @functools.wraps(fn):
-    def wrapped(*args, **kwargs):
-        stmt = fn(*args, **kwargs)
-        get_session().add_statement(stmt)
-    return wrapped
 
 
 as_statement = auto_add(from_expression)

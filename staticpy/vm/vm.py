@@ -131,14 +131,13 @@ class WrappedInstruction:
 
 
 class VM(abc.ABC):
-    def __init__(self):
-        self.blocks = {}
+    def __init__(self, session=None):
         self.data_stack = []
         self.statements = []
         self._variables = {}
         self.__instructions = {}
         self.__ip = 0
-        self.__session = new_session()
+        self.__session = session or new_session()
 
     def push(self, tos):
         self.data_stack.append(tos)
@@ -199,9 +198,9 @@ class VM(abc.ABC):
 
 
 class FunctionVM(VM):
-    def __init__(self, func, is_method=False, is_constructor=False):
+    def __init__(self, func, is_method=False, is_constructor=False, session=None):
         self.func = func
-        super().__init__()
+        super().__init__(session)
         self.__source = None
         self.__is_method = is_method
         self.__is_constructor = is_constructor
@@ -225,6 +224,10 @@ class FunctionVM(VM):
             # print(instruction.instruction)
             instruction.run(self)
             self.IP += 2
+        for i, block in enumerate(self.session.blocks):
+            if isinstance(block, Block):
+                self.session.blocks[i] = block.realize()
+        return self.block.realize()
 
     def setup_instructions(self):
         for instruction in dis.get_instructions(self.code):
@@ -253,14 +256,14 @@ class FunctionVM(VM):
             "is_method": self.__is_method,
             "is_constructor": self.__is_constructor,
         }
-        self.blocks['root'] = block
+        self.block = block
         self.push_block(block)
 
     def get_block(self, name):
         name = name.name
-        if name not in self.blocks:
-            self.blocks[name] = Block(BlockType.Empty, external=True)
-        return self.blocks[name]
+        if name not in self.session.blocks:
+            self.session.blocks[name] = Block(BlockType.Empty, external=True)
+        return self.session.blocks[name]
 
     def resolve_annotations(self):
         """Resolve in-function annotations with regex"""

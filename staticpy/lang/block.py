@@ -1,4 +1,5 @@
 import abc
+import itertools
 
 
 class Block(abc.ABC):
@@ -7,15 +8,15 @@ class Block(abc.ABC):
 
     @abc.abstractmethod
     def translate(self):
-        pass
+        return list(itertools.chain(*(stmt.translate() for stmt in self.statements)))
 
     def __enter__(self):
-        from .session import get_session
+        from ..session import get_session
         get_session().push_block(self)
 
     def __exit__(self, *args):
-        from .session import get_session
-        get_session().pop_block(self)
+        from ..session import get_session
+        get_session().pop_block()
 
     def add_statement(self, stmt):
         self.statements.append(stmt)
@@ -23,7 +24,7 @@ class Block(abc.ABC):
 
 class EmptyBlock(Block):
     def translate(self):
-        return [stmt.translate() for stmt in self.statements]
+        return list(itertools.chain(*(stmt.translate() for stmt in self.statements)))
 
 
 class Scope(Block):

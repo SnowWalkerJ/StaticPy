@@ -23,6 +23,7 @@ def unary_expression(name, op, level=None):
     my_name = name
     my_op = op
     my_level = level
+
     class UnaryExpression(OpExpression):
         op = my_op
         name = my_name
@@ -44,6 +45,7 @@ def binary_expression(name, op, level=None):
     my_name = name
     my_op = op
     my_level = level
+
     class BinaryExpression(OpExpression):
         op = my_op
         name = my_name
@@ -66,6 +68,7 @@ def compare_expression(name, op, level=None):
     my_name = name
     my_op = op
     my_level = level
+
     class BinaryExpression(OpExpression):
         op = my_op
         name = my_name
@@ -84,10 +87,12 @@ def compare_expression(name, op, level=None):
     return BinaryExpression
 
 
-UnaryPositive = unary_expression('UnaryPositive', '+', 5)
-UnaryNegative = unary_expression('UnaryNegative', '-', 5)
+AddressOf = unary_expression('AddressOf', '&', 16)
+UnaryPositive = unary_expression('UnaryPositive', '+', 16)
+UnaryNegative = unary_expression('UnaryNegative', '-', 16)
 UnaryNot = unary_expression('UnaryNot', '!', 16)
-UnaryInvert = unary_expression('UnaryInvert', '~')
+UnaryInvert = unary_expression('UnaryInvert', '~', 16)
+ScopeAnalysis = binary_expression("ScopeAnalysis", "::", 18)
 BinaryMultiply = binary_expression('BinaryMultiply', '*', 14)
 BinaryDivide = binary_expression('BinaryDivide', '/', 14)
 BinaryModulo = binary_expression('BinaryModulo', '%', 14)
@@ -130,6 +135,16 @@ class CallFunction(Expression):
         name = self.func
         args = ", ".join(map(str, self.args))
         return f"{name}({args})"
+
+
+class TemplateInstantiate(Expression):
+    def __init__(self, name, args):
+        self.name = name
+        self.args = args
+
+    def __str__(self):
+        args = "<" + stringify_arguments(self.args) + ">"
+        return self.name + args
 
 
 class Const(Expression):
@@ -188,16 +203,6 @@ class GetItem(Expression):
         return f"{self.obj}[{self.index}]"
 
 
-class TemplateInstantiate(Expression):
-    def __init__(self, name, *args):
-        self.name = name
-        self.args = args
-
-    def __str__(self):
-        args = "<" + stringify_arguments(self.args) + ">"
-        return self.name + args
-
-
 class Cast(Expression):
     level = 19
 
@@ -223,10 +228,10 @@ def compare_op(opname):
 
 
 def cast_value_to_expression(value):
-    from .variable import Variable
+    from .variable import Variable, Name
     if isinstance(value, Expression):
         pass
-    elif isinstance(value, Variable):
+    elif isinstance(value, (Variable, Name)):
         value = Var(value)
     else:
         value = Const(value)

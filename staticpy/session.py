@@ -16,22 +16,22 @@ class Session:
         return self.block_stack.pop()
 
     def __enter__(self):
-        global __sessions
-        __sessions.append(self)
+        global _sessions
+        _sessions.append(self)
         return self
 
     def __exit__(self, *args):
-        global __sessions
-        __sessions.pop()
+        global _sessions
+        _sessions.pop()
 
 
-__sessions = []
+_sessions = []
 
 
-def get_session():
-    global __sessions
-    return __sessions[-1]
+def get_session() -> Session:
+    global _sessions
+    return _sessions[-1]
 
 
-def new_session():
+def new_session() -> Session:
     return Session()

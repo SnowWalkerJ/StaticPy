@@ -2,12 +2,10 @@ from abc import ABC, abstractmethod
 
 import jinja2
 
-from ..macro import include
-
 
 class Template(ABC):
     @abstractmethod
-    def render(self, blocks, libname):
+    def render(self, session):
         pass
 
     @classmethod
@@ -30,9 +28,9 @@ class CppTemplate(Template):
 
 {{footer}}"""
 
-    def render(self, blocks, libname):
+    def render(self, session):
         template = jinja2.Template(self.get_template())
         params = {}
-        for name, (block, level) in blocks.items():
-            params[name] = "\n".join(["  " * level + line for line in block.translate()])
+        for name, block in session.blocks.items():
+            params[name] = "\n".join(block.translate())
         return template.render(**params)
