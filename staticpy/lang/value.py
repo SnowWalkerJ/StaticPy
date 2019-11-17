@@ -14,17 +14,33 @@ class Value(abc.ABC):
         from .expression import BinaryAdd
         return BinaryAdd(self, other)
 
+    def __radd__(self, other):
+        from .expression import BinaryAdd
+        return BinaryAdd(other, self)
+
     def __sub__(self, other):
         from .expression import BinarySubtract
         return BinarySubtract(self, other)
+
+    def __rsub__(self, other):
+        from .expression import BinarySubtract
+        return BinarySubtract(other, self)
 
     def __mul__(self, other):
         from .expression import BinaryMultiply
         return BinaryMultiply(self, other)
 
+    def __rmul__(self, other):
+        from .expression import BinaryMultiply
+        return BinaryMultiply(other, self)
+
     def __div__(self, other):
         from .expression import BinaryDivide
         return BinaryDivide(self, other)
+
+    def __rdiv__(self, other):
+        from .expression import BinaryDivide
+        return BinaryDivide(other, self)
 
     def __truediv__(self, other):
         from .expression import BinaryDivide

@@ -25,5 +25,5 @@ class TestArray(unittest.TestCase):
                 s += arr[i, 0]
             return s
 
-        x = np.arange(10).reshape(5, 2)
+        x = np.arange(10, dtype=np.int32).reshape(5, 2)
         self.assertEqual(fn_complex_array(x), 20)

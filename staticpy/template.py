@@ -34,6 +34,5 @@ class CppTemplate(Template):
         template = jinja2.Template(self.get_template())
         params = {}
         for name, block in session.blocks.items():
-            print(block.translate())
             params[name] = "\n".join(block.translate())
         return template.render(**params)

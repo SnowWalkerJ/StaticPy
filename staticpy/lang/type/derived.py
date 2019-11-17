@@ -21,7 +21,10 @@ class PointerType(DerivedType):
         return ""
 
     def declare(self, name, init=None):
-        return f"{self}{name} = nullptr;"
+        if init is None:
+            return f"{self}{name} = nullptr;"
+        else:
+            return f"{self}{name} = {init};"
 
 
 class OtherType(DerivedType):
@@ -76,14 +79,16 @@ class ComplexArrayType(ArrayType):
 
     @staticmethod
     def getitem(self, indices):
+        from .. import expression as E
+        indices = [x.value if isinstance(x, E.Const) else x for x in indices]
         if all(isinstance(x, int) for x in self._shape[1:]):
             # if shape is given, calculate the index in Python
-            from .. import expression as E
-            index = E.Const(0)
-            stride = E.Const(1)
-            for i, s in reversed(list(zip(indices, self._shape[1:]))):
-                index = index + E.cast_value_to_expression(i) * stride
-                stride = stride * s
+            index = 0
+            stride = 1
+            for i, s in reversed(list(zip(indices, self._shape))):
+                index = index + i * stride if index is not 0 else (i if stride is 1 else i * stride)
+                if s is not Ellipsis:
+                    stride = stride * s
             return E.GetItem(self, index)
         else:
             # call method from c++
