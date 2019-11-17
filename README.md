@@ -42,3 +42,21 @@ def frac(n: Int) -> Int:
 
 assert frac(5) == 120
 ```
+
+## Buffer Protocal
+
+Now buffer protocal is supported thanks to pybind11. You can feed a numpy array to a function. StaticPy
+will do the right transformation for you. However, only element-wise operations are supported, and you can't
+return an array for now. We are planning on removing this restriction soon.
+
+```python
+from staticpy import jit, Int
+
+@jit
+def sum(numbers: Int[:]):
+    i: Int
+    s: Int = 0
+    for i in range(len(numbers)):
+        s += numbers[i]
+    return s
+```

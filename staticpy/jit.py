@@ -27,7 +27,7 @@ class Function:
         self.funcs = [func]
 
     def overload(self, func):
-        raise NotImplementedError
+        self.funcs.append(func)
 
     def __call__(self, *args):
         pass
