@@ -4,6 +4,7 @@ class Session:
         self.block_stack = []
         self.functions = []
         self.classes = []
+        self.array_types = {}
 
     @property
     def current_block(self):
@@ -30,6 +31,8 @@ _sessions = []
 
 def get_session() -> Session:
     global _sessions
+    if not _sessions:
+        _sessions.append(Session())
     return _sessions[-1]
 
 

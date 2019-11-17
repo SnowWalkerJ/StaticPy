@@ -87,7 +87,10 @@ def store_attr(vm: VM, attr):
 
 def load_const(vm: VM, value):
     if value is not None:
-        value = E.Const(value)
+        try:
+            value = E.Const(value)
+        except TypeError:
+            pass
     vm.push(value)
 
 
@@ -112,7 +115,16 @@ def load_global(vm: VM, name: str):
 
 
 def load_attr(vm: VM, name):
-    vm.push(E.GetAttr(vm.pop(), name))
+    # vm.push(E.GetAttr(vm.pop(), name))
+    vm.push(getattr(vm.pop(), name))
+
+
+def binary_subscr(vm: VM, _):
+    from ..lang import expression as E
+    obj, index = vm.popn(2)
+    if isinstance(obj, (list, tuple)) and isinstance(index, E.Const):
+        index = index.value
+    vm.push(obj.__getitem__(index))
 
 
 def compare_op(vm: VM, opname):
@@ -391,7 +403,7 @@ binary_multiply = binary_operation(E.BinaryMultiply)
 binary_modulo = binary_operation(E.BinaryModulo)
 binary_add = binary_operation(E.BinaryAdd)
 binary_subtract = binary_operation(E.BinarySubtract)
-binary_subscr = binary_operation(E.GetItem)
+# binary_subscr = binary_operation(E.GetItem)
 binary_floor_divide = binary_operation(E.BinaryDivide)
 binary_true_divide = binary_operation(E.BinaryDivide)
 binary_power = not_implemented

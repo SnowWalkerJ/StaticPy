@@ -8,7 +8,7 @@ class Value(abc.ABC):
 
     def astype(self, type):
         from . import expression as E
-        return E.Cast(self, type)
+        return E.StaticCast(self, type)
 
     def __add__(self, other):
         from .expression import BinaryAdd

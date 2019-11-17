@@ -2,10 +2,16 @@ import os
 
 
 def stringify_arguments(args):
-    from ..expression import cast_value_to_expression
+    from ..lang.expression import cast_value_to_expression
     return ", ".join(map(str, map(cast_value_to_expression, args)))
 
 
 def get_target_filepath(path, libname):
-    suffix = os.popen("python3-config --extension-suffix")._stream.read().strip("\n")
+    with os.popen("python3-config --extension-suffix") as f:
+        suffix = f.read().strip("\n")
     return os.path.join(path, libname + suffix)
+
+
+def function_pointer_signature(inputs, output):
+    args = ", ".join(str(t) for t, n in inputs)
+    return f"{output} (*)({args})"

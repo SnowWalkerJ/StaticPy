@@ -144,7 +144,7 @@ class TemplateInstantiate(Expression):
 
     def __str__(self):
         args = "<" + stringify_arguments(self.args) + ">"
-        return self.name + args
+        return str(self.name) + args
 
 
 class Const(Expression):
@@ -162,6 +162,8 @@ class Const(Expression):
             return T.Bool
         elif isinstance(value, str):
             return T.String
+        elif isinstance(value, T.TypeBase):
+            return T.TypeBase
         else:
             raise TypeError(f"type '{type(value)} not supported")
 
@@ -203,17 +205,27 @@ class GetItem(Expression):
         return f"{self.obj}[{self.index}]"
 
 
+class StaticCast(Expression):
+    level = 19
+
+    def __init__(self, expr: Expression, astype):
+        # assert isinstance(astype, T.PrimitiveType), "can only cast to basic type"
+        self.expr = cast_value_to_expression(expr)
+        self.astype = astype
+
+    def __str__(self):
+        return f"static_cast<{self.astype}>({self.expr})"
+
+
 class Cast(Expression):
     level = 19
 
     def __init__(self, expr: Expression, astype):
-        assert isinstance(astype, T.PrimitiveType), "can only cast to basic type"
         self.expr = cast_value_to_expression(expr)
         self.astype = astype
-        self.type = type
 
     def __str__(self):
-        return f"static_cast<{self.astype.cname()}>({self.expr})"
+        return f"({self.astype})({self.expr})"
 
 
 def compare_op(opname):

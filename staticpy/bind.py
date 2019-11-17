@@ -12,6 +12,7 @@ from .lang import (
     type as T,
     variable as V,
 )
+from .util.string import function_pointer_signature
 from .lang.common import get_block_or_create
 from .session import get_session
 
@@ -98,7 +99,7 @@ class PyBindFunction(BindObject):
             args = (V.Name(str(type)) for _, type in self.inputs)
             args = (E.CallFunction(E.TemplateInstantiate(template, args), ()), )
         else:
-            args = (self.name, self.address(namespace), self.doc)
+            args = (self.name, E.Cast(self.address(namespace), V.Name(function_pointer_signature(self.inputs, self.output))), self.doc)
         S.as_statement(E.CallFunction(E.GetAttr(parent, "def"), args))
 
     def address(self, namespace=None):

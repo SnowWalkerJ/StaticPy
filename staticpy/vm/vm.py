@@ -204,17 +204,16 @@ class VM(abc.ABC):
 
 
 class FunctionVM(VM):
-    def __init__(self, func, is_method=False, is_constructor=False, session=None):
+    def __init__(self, func, session=None):
         self.func = func
         super().__init__(session)
         self.__source = None
-        self.__is_method = is_method
-        self.__is_constructor = is_constructor
 
-    def run(self):
-        self.resolve_signature()
+    def run(self, kwargs={}):
+        # TODO: allow outside variable
+        self.resolve_signature(kwargs)
         self.setup_block()
-        self.setup_variables()
+        self.setup_variables(kwargs)
         self.setup_instructions()
         self.IP = 0
         # first_line = inspect.getsourcelines(self.func)[1]
@@ -239,7 +238,7 @@ class FunctionVM(VM):
             offset = instruction.offset
             self.instructions[offset] = WrappedInstruction(instruction)
 
-    def setup_variables(self):
+    def setup_variables(self, kwargs):
         from ..lang import variable as V
         untyped_variables = set(self.func.__code__.co_varnames)
         local_variables = self.resolve_annotations()
@@ -251,16 +250,10 @@ class FunctionVM(VM):
                             .format(untyped_variables))
         for _, name in local_variables:
             self.add_statement(S.VariableDeclaration(self.get_variable(name)))
+        self._variables.update(kwargs)
 
     def setup_block(self):
-        block = Block(BlockType.Function, external=True)
-        block.extra_info = {
-            "name": self.func.__name__,
-            "output": self.output,
-            "inputs": self.inputs,
-            "is_method": self.__is_method,
-            "is_constructor": self.__is_constructor,
-        }
+        block = Block(BlockType.Empty, external=True)
         self.block = block
         self.push_block(block)
 
@@ -285,16 +278,15 @@ class FunctionVM(VM):
                 variables.append((type, varname))
         return variables
 
-    def resolve_signature(self):
+    def resolve_signature(self, kwargs):
         sig = inspect.signature(self.func)
         ret_type = sig.return_annotation
-        assert self.__is_constructor == (ret_type == inspect._empty)
         inputs = [(p.annotation, p.name) for p in sig.parameters.values()
-                  if not (self.__is_method and p.name == "self")]
+                  if p.name not in kwargs]
         if any(x[0] == inspect._empty for x in inputs):
             raise SyntaxError("All arguments must be annotated")
         self.inputs = inputs
-        self.output = ret_type
+        self.output = ret_type if ret_type is not inspect._empty else None
 
     def add_source(self, line):
         source = self.source.split("\n")

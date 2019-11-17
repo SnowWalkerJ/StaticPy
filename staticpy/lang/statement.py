@@ -12,12 +12,13 @@ class Statement(abc.ABC):
 
 
 class VariableDeclaration(Statement):
-    def __init__(self, var):
+    def __init__(self, var, init=None):
         self.variable = var
+        self.init = init
 
     def translate(self):
         var = self.variable
-        return [f"{var.type.cname()} {var.name};"]
+        return [var.type.declare(var.name, self.init)]
 
 
 class UsingNamespace(Statement):
@@ -96,7 +97,7 @@ class BlockStatement(Statement):
         self.block = block
 
     def translate(self):
-        return ["  " + line for line in self.block.translate()]
+        return self.block.translate()
 
 
 def inplace_statement(name, op):
@@ -188,3 +189,8 @@ def comment(text):
 @auto_add
 def statement(stmt):
     return SimpleStatement(stmt)
+
+
+@auto_add
+def declare(var, init=None):
+    return VariableDeclaration(var, init)

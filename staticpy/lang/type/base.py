@@ -21,15 +21,20 @@ class TypeBase(ABC):
     def suffix(self):
         pass
 
+    def instantiate(self, variable):
+        pass
+
     def compatible(self, type):
         return False
 
     def __str__(self):
-        prefix = self.prefix()
-        if prefix:
-            return " ".join([self.cname(), self.prefix()])
-        else:
-            return self.cname()
+        return " ".join([str(self.cname()), self.prefix()])
 
     def declare(self, name, init=None):
-        return f"{self}{name}" + ("" if init is None else f" = {init}")
+        if init is None:
+            return f"{self}{name};"
+        else:
+            return f"{self}{name} = {init};"
+
+    def wrapped(self):
+        return self

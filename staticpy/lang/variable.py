@@ -1,10 +1,15 @@
+from functools import partial
+
 from .value import Value
+from . import expression as E
+from .type.derived import ArrayType
 
 
 class Variable(Value):
     def __init__(self, name: str, type):
         self.name = name
         self.type = type
+        type.instantiate(self)
 
     def __str__(self):
         return str(self.name)

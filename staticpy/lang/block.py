@@ -103,6 +103,7 @@ class While(Scope):
     def prefix(self):
         return f"while({self.condition}) {{"
 
+
 class Function(Scope):
     def __init__(self, name, inputs, output, statements, is_method=False, is_constructor=False):
         self.name = name
@@ -117,5 +118,5 @@ class Function(Scope):
 
     def prefix(self):
         ret_type = "" if self.is_constructor else f"{self.output} "
-        args = ", ".join(f"{type.cname()} {name}" for type, name in self.inputs)
+        args = ", ".join(f"{type.cname()} {type.prefix()}{name}" for type, name in self.inputs)
         return f"{ret_type}{self.name}({args}) {{"

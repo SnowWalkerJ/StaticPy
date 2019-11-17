@@ -11,7 +11,14 @@ from .vm import FunctionVM
 from .session import new_session
 from .util.string import get_target_filepath
 from .lang.common import get_block_or_create
-from .lang import statement as S, macro as M
+from .lang import (
+    statement as S,
+    expression as E,
+    macro as M,
+    block as B,
+    type as T,
+    variable as V,
+)
 
 
 class Function:
@@ -60,14 +67,61 @@ class JitFunction(Function):
         with sess:
             global_block = get_block_or_create('global')
         for func in self.funcs:
+            name = func.__name__
             vm = FunctionVM(func, session=sess)
             block = vm.run()
-            global_block.add_statement(S.BlockStatement(block))
+            funcs, inputs = self._wrap_function(name, vm.inputs, vm.output, block)
+            for func in funcs:
+                global_block.add_statement(S.BlockStatement(func))
             self._signatures.append({
-                "name": func.__name__,
-                "inputs": vm.inputs,
+                "name": name,
+                "inputs": inputs,
                 "output": vm.output,
             })
+
+    def _wrap_function(self, name, inputs, output, block):
+        funcs = [B.Function(name, inputs, output, block.statements)]
+        # if any, wrap the array types
+        if any(isinstance(type, T.ArrayType) for type, name in inputs):
+            wrapped_inputs = []
+            params = []
+            block = B.EmptyBlock()
+            with block:
+                buffer_info_t = T.OtherType(E.ScopeAnalysis(V.Name("py"), V.Name("buffer_info")))
+                bi = V.Variable("bi", buffer_info_t)
+                S.declare(bi)
+                for t, n in inputs:
+                    if isinstance(t, T.ArrayType):
+                        buffer_t = T.OtherType(E.ScopeAnalysis(V.Name("py"), V.Name("buffer")))
+                        wrapped_inputs.append((buffer_t, n))
+                        v_in = V.Variable(n, buffer_t)
+                        if isinstance(t, T.SimpleArrayType):
+                            v_out = V.Variable("_" + n, t.wrapped())
+                            S.assign(bi, E.CallFunction(E.GetAttr(v_in, "request"), ()))
+                            ptr = E.StaticCast(E.GetAttr(bi, "ptr"), T.PointerType(t.base))
+                            S.declare(v_out, ptr)
+                        elif isinstance(t, T.ComplexArrayType):
+                            v_out = V.Variable("_" + n, t)
+                            S.assign(bi, E.CallFunction(E.GetAttr(v_in, "request"), ()))
+                            ptr = E.StaticCast(E.GetAttr(bi, "ptr"), T.PointerType(t.base))
+                            shape = E.GetAttr(bi, "shape")
+                            args = [ptr]
+                            for index in range(t.dim):
+                                args.append(E.GetItem(shape, index))
+                            S.declare(v_out, E.CallFunction(t.cname(), tuple(args)))
+                        params.append(v_out)
+                    else:
+                        wrapped_inputs.append((t, n))
+                        params.append(V.Variable(n, t))
+                S.returns(E.CallFunction(name, tuple(params)))
+            block = B.Function(name, wrapped_inputs, output, block.statements)
+            m = M.IfDefMacro("PYBIND")
+            m.add_statement(S.BlockStatement(block))
+            funcs.append(m)
+            inputs = wrapped_inputs
+        else:
+            inputs = [(t.wrapped(), n) for t, n in inputs]
+        return funcs, inputs
 
     def _bind(self, sess):
         with sess:

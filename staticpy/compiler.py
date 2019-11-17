@@ -42,10 +42,18 @@ class Compiler:
 
     def compile(self, target_path, libname, sources):
         sources = " ".join(sources)
-        includes = os.popen("python3 -m pybind11 --includes")._stream.read().strip("\n")
+        includes = get_include_path()
         output_filename = get_target_filepath(target_path, libname)
         command = f"c++ -O3 -Wall -shared -std=c++11 -fPIC {includes} {sources} -o {output_filename}"
         if platform.system() == "Darwin":
             command += " -undefined dynamic_lookup"
         logging.info(command)
         os.system(command)
+
+
+def get_include_path():
+    with os.popen("python3 -m pybind11 --includes") as f:
+        includes = f.read().strip("\n")
+    path = os.path.dirname(__file__)
+    includes += " -I" + os.path.join(path, "cpp", "header")
+    return includes

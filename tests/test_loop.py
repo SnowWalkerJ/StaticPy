@@ -5,10 +5,6 @@ from staticpy.common.options import set_option
 
 
 class LoopTest(unittest.TestCase):
-    @classmethod
-    def setUp(cls):
-        set_option("force_compile", True)
-
     def test_for(self):
         @jit
         def fn_for(n: Int) -> Int:

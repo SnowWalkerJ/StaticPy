@@ -22,6 +22,8 @@ class Template(ABC):
 class CppTemplate(Template):
     """#define _likely(x) __builtin_expect((x), 1)
 #define _unlikely(x) __builtin_expect((x), 0)
+#include <array.h>
+
 {{header}}
 
 {{global}}
@@ -32,5 +34,6 @@ class CppTemplate(Template):
         template = jinja2.Template(self.get_template())
         params = {}
         for name, block in session.blocks.items():
+            print(block.translate())
             params[name] = "\n".join(block.translate())
         return template.render(**params)
