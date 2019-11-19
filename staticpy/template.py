@@ -22,9 +22,9 @@ class Template(ABC):
 class CppTemplate(Template):
     """#define _likely(x) __builtin_expect((x), 1)
 #define _unlikely(x) __builtin_expect((x), 0)
-#include <array.h>
 
 {{header}}
+#include <array.h>
 
 {{global}}
 

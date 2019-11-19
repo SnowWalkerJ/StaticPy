@@ -83,32 +83,22 @@ class JitFunction(Function):
         funcs = [B.Function(name, inputs, output, block.statements)]
         # if any, wrap the array types
         if any(isinstance(type, T.ArrayType) for type, name in inputs):
+            # TODO: check shape and itemsize
+            # TODO: shorten this function
             wrapped_inputs = []
             params = []
             block = B.EmptyBlock()
+            auto_t = T.OtherType(V.Name("auto"))
             with block:
-                buffer_info_t = T.OtherType(E.ScopeAnalysis(V.Name("py"), V.Name("buffer_info")))
-                bi = V.Variable("bi", buffer_info_t)
-                S.declare(bi)
                 for t, n in inputs:
                     if isinstance(t, T.ArrayType):
                         buffer_t = T.OtherType(E.ScopeAnalysis(V.Name("py"), V.Name("buffer")))
                         wrapped_inputs.append((buffer_t, n))
                         v_in = V.Variable(n, buffer_t)
-                        if isinstance(t, T.SimpleArrayType):
-                            v_out = V.Variable("_" + n, t.wrapped())
-                            S.assign(bi, E.CallFunction(E.GetAttr(v_in, "request"), ()))
-                            ptr = E.StaticCast(E.GetAttr(bi, "ptr"), T.PointerType(t.base))
-                            S.declare(v_out, ptr)
-                        elif isinstance(t, T.ComplexArrayType):
-                            v_out = V.Variable("_" + n, t)
-                            S.assign(bi, E.CallFunction(E.GetAttr(v_in, "request"), ()))
-                            ptr = E.StaticCast(E.GetAttr(bi, "ptr"), T.PointerType(t.base))
-                            shape = E.GetAttr(bi, "shape")
-                            args = [ptr]
-                            for index in range(t.dim):
-                                args.append(E.GetItem(shape, index))
-                            S.declare(v_out, E.CallFunction(t.cname(), tuple(args)))
+                        v_out = V.Variable("_" + n, t)
+                        buffer_info = V.Variable(f"buffer_info_{n}", auto_t)
+                        S.declare(buffer_info, E.CallFunction(E.GetAttr(v_in, "request"), ()))
+                        S.declare(v_out, E.CallFunction(t.cname(), (buffer_info, )))
                         params.append(v_out)
                     else:
                         wrapped_inputs.append((t, n))
