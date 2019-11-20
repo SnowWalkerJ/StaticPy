@@ -1,5 +1,7 @@
 # StaticPy
 
+![](https://github.com/SnowWalkerJ/StaticPy/workflows/Python%20package/badge.svg)
+
 StaticPy is a Python-to-C++ translater. 
 
 It supports a subset of Python grammar. It analyzes Python bytecode of a function and translate it to C++.
