@@ -31,16 +31,11 @@ public:
         // transform numpy-like index to C-like index
         va_list args;
         va_start(args, index0);
-        long indices[ndim];
-        indices[0] = (long)index0;
+        long offset = (long)index0 * strides[0];
         for (unsigned short i = 1; i < ndim; i++) {
-            indices[i] = (long)va_arg(args, Integer);
+            offset += (long)va_arg(args, Integer) * strides[i];
         }
         va_end(args);
-        long offset = 0;
-        for (unsigned short i = 0; i < ndim; i++) {
-            offset += strides[i] * indices[i];
-        }
         return *(T *)((char *)data + offset);
     }
 
