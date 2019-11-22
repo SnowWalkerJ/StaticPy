@@ -28,6 +28,26 @@ class PointerType(DerivedType):
             return f"{self}{name} = {init};"
 
 
+class ReferenceType(DerivedType):
+    def __init__(self, base):
+        self.base = base
+
+    def cname(self):
+        return str(self.base.cname()) + "&"
+
+    def prefix(self):
+        return ""
+
+    def suffix(self):
+        return ""
+
+    def declare(self, name, init=None):
+        if init is None:
+            raise ValueError("Can't declare a reference without target")
+        else:
+            return f"{self}{name} = {init};"
+
+
 class OtherType(DerivedType):
     def __init__(self, alias):
         self.real_type = alias

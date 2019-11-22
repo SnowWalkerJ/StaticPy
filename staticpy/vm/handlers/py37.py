@@ -1,10 +1,10 @@
 import dis
 import inspect
 
-from . import constant
-from .vm import VM
-from .builtin import search_builtin
-from ..lang import (
+from .. import constant
+from ..vm import VM
+from ..builtin import search_builtin
+from ...lang import (
     statement as S,
     expression as E,
     variable as V,
@@ -43,7 +43,7 @@ def nop(vm: VM, _):
 
 
 def setup_loop(vm: VM, offset: int):
-    from .vm import Block, BlockType
+    from ..vm import Block, BlockType
     block = Block(BlockType.Loop)
     block.extra_info = {
         "begin_offset": vm.IP + 2,
@@ -53,13 +53,13 @@ def setup_loop(vm: VM, offset: int):
 
 
 def setup_except(vm: VM, _):
-    from .vm import Block, BlockType
+    from ..vm import Block, BlockType
     block = Block(BlockType.Except)
     vm.push_block(block)
 
 
 def setup_finally(vm: VM, _):
-    from .vm import Block, BlockType
+    from ..vm import Block, BlockType
     block = Block(BlockType.Finally)
     vm.push_block(block)
 
@@ -120,7 +120,6 @@ def load_attr(vm: VM, name):
 
 
 def binary_subscr(vm: VM, _):
-    from ..lang import expression as E
     obj, index = vm.popn(2)
     if isinstance(obj, (list, tuple)) and isinstance(index, E.Const):
         index = index.value
@@ -184,7 +183,7 @@ def jump_if_true_or_pop(vm: VM, offset: int):
 
 
 def jump_absolute(vm: VM, offset: int):
-    from .vm import BlockType, Block
+    from ..vm import BlockType, Block
 
     def _continue_statement():
         if offset != vm.session.current_block.extra_info["begin_offset"]:
@@ -222,7 +221,7 @@ def pop_jump_if_false(vm: VM, offset: int):
     3. right before POP_BLOCK there is a JUMP_ABSOLUTE targeting
     after SETUP_LOOP
     """
-    from .vm import Block, BlockType, LoopType
+    from ..vm import Block, BlockType, LoopType
     condition = vm.pop()
     target = vm.instructions[offset]
 
@@ -280,7 +279,7 @@ def get_iter(vm: VM, _):
 
 
 def for_iter(vm: VM, offset: int):
-    from .vm import LoopType
+    from ..vm import LoopType
     _, start, stop, step = vm.pop()
     vm.IP += 2
     if vm.current_instruction.opcode != constant.STORE_FAST:
@@ -314,7 +313,7 @@ def store_subscr(vm: VM, _):
 
 
 def pop_block(vm: VM, _):
-    from .vm import Block
+    from ..vm import Block
     block = vm.pop_block()
     if isinstance(block, Block) and not block.external:
         vm.add_statement(S.BlockStatement(block.realize()))

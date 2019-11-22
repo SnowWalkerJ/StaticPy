@@ -80,7 +80,8 @@ class JitFunction(Function):
             })
 
     def _wrap_function(self, name, inputs, output, block):
-        funcs = [B.Function(name, inputs, output, block.statements)]
+        wrapped_inputs = [(T.ReferenceType(t) if isinstance(t, T.ArrayType) else t, n) for (t, n) in inputs]
+        funcs = [B.Function(name, wrapped_inputs, output, block.statements)]
         # if any, wrap the array types
         if any(isinstance(type, T.ArrayType) for type, name in inputs):
             # TODO: check shape and itemsize

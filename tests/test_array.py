@@ -19,13 +19,17 @@ class TestArray(unittest.TestCase):
         self.x = np.arange(10, dtype=np.int32).reshape(5, 2)
 
     def test_simple_array(self):
-        self.assertEqual(self.fn(self.x), 20)
+        x = self.x
+        self.assertEqual(self.fn(x), x[:, 0].sum())
 
     def test_reversed_array(self):
-        self.assertEqual(self.fn(self.x[::-1, :]), 20)
+        x = self.x[::-1, :]
+        self.assertEqual(self.fn(x), x[:, 0].sum())
 
     def test_strided_array(self):
-        self.assertEqual(self.fn(self.x[::2, :]), 12)
-    
+        x = self.x[::2, :]
+        self.assertEqual(self.fn(x), x[:, 0].sum())
+
     def test_skip_array(self):
-        self.assertEqual(self.fn(self.x[2:, :]), 18)
+        x = self.x[2:, :]
+        self.assertEqual(self.fn(x), x[:, 0].sum())

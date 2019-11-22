@@ -216,16 +216,9 @@ class FunctionVM(VM):
         self.setup_variables(kwargs)
         self.setup_instructions()
         self.IP = 0
-        # first_line = inspect.getsourcelines(self.func)[1]
+        breakpoint()
         while self.IP <= max(self.instructions.keys()):
             instruction = self.current_instruction
-            # opcode = instruction.opcode
-            # argval = instruction.argval
-            # offset = instruction.offset
-            # starts_line = instruction.starts_line
-            # is_jump_target = instruction.is_jump_target
-            # if starts_line is not None:
-            #     self.add_source(starts_line - first_line)
             instruction.run(self)
             self.IP += 2
         for i, block in enumerate(self.session.blocks):
