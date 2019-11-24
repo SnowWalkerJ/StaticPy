@@ -62,6 +62,15 @@ class OtherType(DerivedType):
         return ""
 
 
+class ShapeProxy:
+    def __init__(self, var):
+        self.var = var
+
+    def __getitem__(self, i):
+        from .. import expression as E
+        return self.var._shape[i] if isinstance(i, int) else E.GetItem(E.GetAttr(self.var, "shape"), i)
+
+
 class ArrayType(DerivedType):
     def __init__(self, base, shape):
         self.base = base
@@ -73,8 +82,7 @@ class ArrayType(DerivedType):
         # TODO: instantiate should return a class
         from .. import expression as E
         variable._shape = self.shape
-        variable.shape = [s if isinstance(s, int) else E.GetItem(E.GetAttr(variable, "shape"), i)
-                          for i, s in enumerate(self.shape)]
+        variable.shape = ShapeProxy(variable)
         variable.itemsize = self.itemsize
         variable.dim = self.dim
         variable.__len__ = MethodType(self.len, variable)

@@ -7,7 +7,7 @@ from .template import CppTemplate
 from .bind import PyBindFunction, PyBindFunctionGroup
 from .common.options import get_option
 from .compiler import Compiler
-from .vm import FunctionVM
+from .translator import BaseTranslator
 from .session import new_session
 from .util.string import get_target_filepath
 from .lang.common import get_block_or_create
@@ -68,15 +68,15 @@ class JitFunction(Function):
             global_block = get_block_or_create('global')
         for func in self.funcs:
             name = func.__name__
-            vm = FunctionVM(func, session=sess)
-            block = vm.run()
-            funcs, inputs = self._wrap_function(name, vm.inputs, vm.output, block)
+            translator = BaseTranslator()
+            block = translator.translate(inspect.getsource(func)).statements[0].block
+            funcs, inputs = self._wrap_function(name, block.inputs, block.output, block)
             for func in funcs:
                 global_block.add_statement(S.BlockStatement(func))
             self._signatures.append({
                 "name": name,
                 "inputs": inputs,
-                "output": vm.output,
+                "output": block.output,
             })
 
     def _wrap_function(self, name, inputs, output, block):

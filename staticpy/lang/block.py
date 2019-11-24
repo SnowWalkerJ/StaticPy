@@ -117,6 +117,6 @@ class Function(Scope):
         return super().translate()
 
     def prefix(self):
-        ret_type = "" if self.is_constructor else f"{self.output} "
+        ret_type = "" if self.is_constructor else str(self.output)
         args = ", ".join(f"{type.cname()} {type.prefix()}{name}" for type, name in self.inputs)
         return f"{ret_type}{self.name}({args}) {{"
