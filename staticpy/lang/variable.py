@@ -1,8 +1,5 @@
-from functools import partial
-
 from .value import Value
 from . import expression as E
-from .type.derived import ArrayType
 
 
 class Variable(Value):
@@ -20,7 +17,6 @@ class ArrayVariable(Variable):
             self.var = var
 
         def __getitem__(self, i):
-            from . import expression as E
             return self.var._shape[i] if isinstance(i, int) else E.GetItem(E.GetAttr(self.var, "shape"), i)
 
     def __init__(self, name, type):
@@ -31,7 +27,6 @@ class ArrayVariable(Variable):
         self.itemsize = type.itemsize
 
     def __getitem__(self, indices):
-        from . import expression as E
         indices = [x.value if isinstance(x, E.Const) else x for x in indices]
         return E.CallFunction(E.GetAttr(self, "getData"), indices)
 

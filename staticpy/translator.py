@@ -15,11 +15,15 @@ from .lang import (
 class ContextStack:
     annotation_map = {
         "int": T.Int,
+        "long": T.Long,
         "float": T.Float,
+        "double": T.Double,
+        "str": T.String,
         "Int": T.Int,
         "Long": T.Long,
         "Float": T.Float,
         "Double": T.Double,
+        "String": T.String,
         "T": T,
     }
 

@@ -2,6 +2,7 @@
 from types import MethodType
 
 from .base import TypeBase
+from ..variable import Name
 
 
 class DerivedType(TypeBase):
@@ -62,9 +63,6 @@ class OtherType(DerivedType):
         return ""
 
 
-
-
-
 class ArrayType(DerivedType):
     def __init__(self, base, shape):
         self.base = base
@@ -92,5 +90,4 @@ class ArrayType(DerivedType):
         return OtherType(clas)
 
 
-def make_array_type(base, shape):
-    return ArrayType(base, shape)
+AutoType = OtherType(Name("auto"))

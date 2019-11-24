@@ -1,10 +1,10 @@
 # StaticPy
 
-![](https://github.com/SnowWalkerJ/StaticPy/workflows/Python%20package/badge.svg)
+![badge](https://github.com/SnowWalkerJ/StaticPy/workflows/Python%20package/badge.svg)
 
-StaticPy is a Python-to-C++ translater. 
+StaticPy is a Python-to-C++ translater.
 
-It supports a subset of Python grammar. It analyzes Python bytecode of a function and translate it to C++.
+It supports a subset of Python grammar. It analyzes Python bytecode of a function and translates it to C++.
 You can write a C++ template and embed the generated code in your template to form a complete code.
 
 Optionally, it can bind the C++ code back to Python using Pybind11 to grant super speed to Python.
@@ -29,6 +29,8 @@ StaticPy supports C++ better than numba. You can include outside sources and use
 StaticPy.
 
 In order to generate pure C++ code, numpy is not supported by StaticPy, which is a huge disadvantage compared to numba.
+
+In addition, the compiling time of StaticPy seems much longer.
 
 ## Usage
 

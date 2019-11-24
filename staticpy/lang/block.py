@@ -1,12 +1,12 @@
-import abc
 import itertools
 
+from . import statement as S
 
-class Block(abc.ABC):
+
+class Block:
     def __init__(self, statements=None):
         self.statements = statements or []
 
-    @abc.abstractmethod
     def translate(self):
         return list(itertools.chain(*(stmt.translate() for stmt in self.statements)))
 
@@ -28,7 +28,6 @@ class EmptyBlock(Block):
 
 
 class Scope(Block):
-    @abc.abstractmethod
     def translate(self):
         statements = []
         statements.append(self.prefix())
@@ -50,19 +49,22 @@ class If(Scope):
         self.condition = condition
         super().__init__(statements)
 
-    def translate(self):
-        return super().translate()
-
     def prefix(self):
         return f"if({self.condition}) {{"
 
 
 class Else(Scope):
-    def __init__(self, statements):
-        super().__init__(statements)
-
-    def translate(self):
-        return super().translate()
+    # def translate(self):
+    #     if len(self.statements) == 1:
+    #         stmt = self.statements[0]
+    #         if isinstance(stmt, S.BlockStatement) and isinstance(stmt.block, If):
+    #             stmts = stmt.block.translate()
+    #             stmts[0] = "else " + stmts
+    #         if not isinstance(stmt, EmptyBlock):
+    #             stmts = stmt.translate()
+    #             stmts = ['else'] + ['  ' + s for s in stmts]
+    #         return stmts
+    #     return super().translate()
 
     def prefix(self):
         return "else {"
@@ -75,9 +77,6 @@ class For(Scope):
         self.stop = stop
         self.step = step
         super().__init__(statements)
-
-    def translate(self):
-        return super().translate()
 
     def prefix(self):
         var = self.variable
@@ -97,9 +96,6 @@ class While(Scope):
         self.condition = condition
         super().__init__(statements)
 
-    def translate(self):
-        return super().translate()
-
     def prefix(self):
         return f"while({self.condition}) {{"
 
@@ -112,9 +108,6 @@ class Function(Scope):
         self.is_method = is_method
         self.is_constructor = is_constructor
         super().__init__(statements)
-
-    def translate(self):
-        return super().translate()
 
     def prefix(self):
         ret_type = "" if self.is_constructor else str(self.output)

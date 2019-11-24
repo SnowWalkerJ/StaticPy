@@ -14,14 +14,14 @@ class PrimitiveType(TypeBase):
         return not self.ctype
 
     def __getitem__(self, shape):
-        from .derived import make_array_type
+        from .derived import ArrayType
         if not isinstance(shape, (list, tuple)):
             shape = (shape, )
         shape = tuple(s if isinstance(s, int) else ... for s in shape)
         session = get_session()
         key = (self, shape)
         if key not in session.array_types:
-            session.array_types[key] = make_array_type(self, shape)
+            session.array_types[key] = ArrayType(self, shape)
         return session.array_types[key]
 
     def cname(self):
@@ -61,10 +61,3 @@ Void = PrimitiveType("Void", None, "void", 0)
 String = PrimitiveType("String", None, "std::string", 0, compatible_type=str)
 
 BuiltInType = PrimitiveType("BuiltIn", None, "", 0)
-
-# TODO: move default_types to somewhere else
-default_types = {
-    int: Long,
-    float: Double,
-    str: String,
-}

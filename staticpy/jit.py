@@ -21,25 +21,17 @@ from .lang import (
 )
 
 
-class Function:
+class JitFunction:
     def __init__(self, func):
         self.name = func.__name__
         self.funcs = [func]
-
-    def overload(self, func):
-        self.funcs.append(func)
-
-    def __call__(self, *args):
-        pass
-
-
-class JitFunction(Function):
-    def __init__(self, func):
-        super().__init__(func)
         self._compiled = False
         self._compiled_func = None
         self._signatures = []
         self._target_path = os.path.dirname(inspect.getabsfile(self.funcs[0]))
+
+    def overload(self, func):
+        self.funcs.append(func)
 
     def compile(self):
         sess = new_session()
