@@ -33,7 +33,7 @@ def require_header(headers: typing.List[str]):
     return decorator
 
 
-def get_block_or_create(name: str) -> "Block":
+def get_block_or_create(name: str):
     from .. import block as B
     sess = get_session()
     if name not in sess.blocks:
