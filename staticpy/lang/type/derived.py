@@ -62,13 +62,7 @@ class OtherType(DerivedType):
         return ""
 
 
-class ShapeProxy:
-    def __init__(self, var):
-        self.var = var
 
-    def __getitem__(self, i):
-        from .. import expression as E
-        return self.var._shape[i] if isinstance(i, int) else E.GetItem(E.GetAttr(self.var, "shape"), i)
 
 
 class ArrayType(DerivedType):
@@ -78,19 +72,9 @@ class ArrayType(DerivedType):
         self.dim = len(shape)
         self.itemsize = base.size
 
-    def instantiate(self, variable):
-        # TODO: instantiate should return a class
-        from .. import expression as E
-        variable._shape = self.shape
-        variable.shape = ShapeProxy(variable)
-        variable.itemsize = self.itemsize
-        variable.dim = self.dim
-        variable.__len__ = MethodType(self.len, variable)
-        variable.__getitem__ = MethodType(self.getitem, variable)
-
-    @staticmethod
-    def len(self):
-        return self.shape[0]
+    def instantiate(self):
+        from .. import variable as V
+        return V.ArrayVariable
 
     def cname(self):
         from .. import expression as E, variable as V
@@ -101,12 +85,6 @@ class ArrayType(DerivedType):
 
     def suffix(self):
         return ""
-
-    @staticmethod
-    def getitem(self, indices):
-        from .. import expression as E
-        indices = [x.value if isinstance(x, E.Const) else x for x in indices]
-        return E.CallFunction(E.GetAttr(self, "getData"), indices)
 
     def wrapped(self):
         from .. import expression as E, variable as V

@@ -190,7 +190,7 @@ class BaseTranslator:
         varname = node.target.id
         value = self._run_node(node.value) if node.value is not None else None
         type = self._run_node(node.annotation)
-        target = V.Variable(varname, type)
+        target = V.variable(varname, type)
         self.ctx[varname] = target
         return S.VariableDeclaration(target, value)
 
@@ -274,6 +274,9 @@ class BaseTranslator:
     def Tuple(self, node):
         return tuple(map(self._run_node, node.elts))
 
+    def List(self, node):
+        return list(map(self._run_node, node.elts))
+
     def IfExp(self, node):
         return E.IIf(
             self._run_node(node.test),
@@ -283,4 +286,4 @@ class BaseTranslator:
 
     # ============= others =============
     def arg(self, node):
-        return V.Variable(node.arg, self._run_node(node.annotation))
+        return V.variable(node.arg, self._run_node(node.annotation))
