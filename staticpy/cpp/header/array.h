@@ -52,12 +52,11 @@ template <typename T, long ndim>
 class Array<T, ndim, false>: public Array<T, ndim, true> {
 public:
     #ifdef PYBIND
-    Array(py::buffer_info& bi) : 
-        data((T*)bi.ptr), shape(bi.shape.data()), strides(bi.strides.data()), itemsize(bi.itemsize) {
+    Array(py::buffer_info& bi) : Array<T, ndim, true>(bi) {
     }
     #endif
     Array(T* data, std::vector<long>& shape, std::vector<long>& strides, long itemsize) : 
-        data(data), shape(shape.data()), strides(strides.data()), itemsize(itemsize) {
+        Array<T, ndim, true>(data, shape, strides, itemsize) {
     }
 
 protected:
