@@ -1,5 +1,7 @@
+#pragma once
 #include <vector>
 #include <stdarg.h>
+#include <stdexcept>
 #ifdef PYBIND
 #include <pybind11/pybind11.h>
 namespace py = pybind11;
@@ -27,9 +29,9 @@ public:
         // transform numpy-like index to C-like index
         va_list args;
         va_start(args, index0);
-        long offset = wrap_index(static_cast<long>(index0)) * strides[0];
-        for (unsigned short i = 1; i < ndim; i++) {
-            offset += wrap_index(static_cast<long>(va_arg(args, Integer))) * strides[i];
+        long offset = wrap_index(static_cast<long>(index0), 0) * strides[0];
+        for (int i = 1; i < ndim; i++) {
+            offset += wrap_index(static_cast<long>(va_arg(args, Integer)), i) * strides[i];
         }
         va_end(args);
         return *(T *)((char *)data + offset);
@@ -40,7 +42,7 @@ protected:
         if (-shape <= index && index < 0) {
             index += shape;
         } else if (index >= shape || index < -shape) {
-            throw std::exception("invalid index");
+            throw std::out_of_range("invalid index");
         }
         return index;
     }
