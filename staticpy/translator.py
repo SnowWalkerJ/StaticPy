@@ -100,8 +100,8 @@ class BaseTranslator:
                 self.err_handled = True
             raise
 
-    def _run_nodes(self, nodes, env=None):
-        block = B.EmptyBlock()
+    def _run_nodes(self, nodes, env=None, block=None):
+        block = block or B.EmptyBlock()
         with block:
             self.ctx.push(env)
             for node in nodes:
@@ -132,25 +132,24 @@ class BaseTranslator:
         self.ctx[name] = V.Name(name)
 
         new_env = {v.name: v for v in args}
-        block = self._run_nodes(node.body, new_env)
-        return B.Function(name, inputs, returns, block.statements)
+        block = self._run_nodes(node.body, new_env, B.Function(name, inputs, returns, None))
+        return block
 
     def If(self, node):
         condition = self._run_node(node.test)
-        block = self._run_nodes(node.body)
-        block = B.If(condition, block.statements)
+        block = self._run_nodes(node.body, block=B.If(condition, None))
 
         orelse = node.orelse
         if not orelse:
             return block
 
-        else_block = B.Else(self._run_nodes(orelse).statements)
+        else_block = self._run_nodes(orelse, block=B.Else(None))
         return [S.BlockStatement(block), S.BlockStatement(else_block)]
 
     def While(self, node):
         condition = self._run_node(node.test)
-        block = self._run_nodes(node.body)
-        return B.While(condition, block.statements)
+        block = self._run_nodes(node.body, block=B.While(condition, None))
+        return block
 
     def For(self, node):
         target = self._run_node(node.target)
@@ -163,7 +162,7 @@ class BaseTranslator:
             start, stop, step = args[0], args[1], 1
         else:
             start, stop, step = args
-        return B.For(target, start, stop, step, self._run_nodes(node.body).statements)
+        return self._run_nodes(node.body, body=B.For(target, start, stop, step, None))
 
     # ============= statements =============
     def Pass(self, node):
