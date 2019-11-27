@@ -1,5 +1,7 @@
 import ast
 import collections
+import functools
+import os
 import sys
 
 from .session import get_session, new_session
@@ -9,6 +11,7 @@ from .lang import (
     expression as E,
     statement as S,
     block as B,
+    macro as M,
 )
 
 
@@ -69,9 +72,9 @@ class ContextStack:
 
 
 class BaseTranslator:
-    def __init__(self, ctx={}):
+    def __init__(self, ctx={}, session=None):
         self.ctx = ContextStack(ctx)
-        self.sess = None
+        self.sess = session
         self.source = None
         self.err_handled = False
 
@@ -79,7 +82,7 @@ class BaseTranslator:
         lines = source.split("\n")
         indents = min(len(line) - len(line.lstrip()) for line in lines if line.lstrip())
         self.source = "\n".join(line[indents:] for line in lines)
-        self.sess = new_session()
+        self.sess = self.sess or new_session()
         self.err_handled = False
 
         node = ast.parse(self.source)
@@ -166,6 +169,38 @@ class BaseTranslator:
         return B.For(target, start, stop, step, self._run_nodes(node.body).statements)
 
     # ============= statements =============
+    def Import(self, node):
+        for target in node.names:
+            name = target.name
+            alias = target.asname
+            if alias is None:
+                # import name
+                # include <name>
+                name = name.split(".")
+                name[-1] = ".".join(name[-1].split("__"))
+                name = "<" + os.path.join(name) + ">"
+                return M.StatementMacro("include", name)
+            else:
+                # import name as alias
+                # namespace alias = name
+                name = functools.reduce(E.ScopeAnalysis, map(V.Name, name.split(".")))
+                var = V.Variable(alias, T.OtherType(V.Name("namespace")))
+                self.ctx[alias] = var
+                return S.VariableDeclaration(var, name)
+
+    def ImportFrom(self, node):
+        for target in node.names:
+            if target == "*":
+                # from module import *
+                # TODO: using namespace module
+                raise NotImplementedError("import from *")
+            else:
+                # from module import name
+                # auto name = module::name
+                mod = functools.reduce(E.ScopeAnalysis, map(V.Name, node.module.split(".")))
+                name = target.asname if target.asname is not None else target.name
+                self.ctx[name] = E.ScopeAnalysis(mod, V.Name(target.name))
+
     def Pass(self, node):
         return S.SingleLineComment("pass")
 
@@ -197,9 +232,6 @@ class BaseTranslator:
         target = V.variable(varname, type)
         self.ctx[varname] = target
         return S.VariableDeclaration(target, value)
-
-    def Import(self, node):
-        raise NotImplementedError("import")
 
     # ============= expressions =============
     def Name(self, node):
@@ -236,7 +268,7 @@ class BaseTranslator:
     def Subscript(self, node):
         obj = self._run_node(node.value)
         index = self._run_node(node.slice)
-        return obj.__getitem__(index)
+        return obj[index]
 
     def Index(self, node):
         return self._run_node(node.value)
@@ -257,6 +289,7 @@ class BaseTranslator:
             ast.Sub: E.BinarySubtract,
             ast.Mult: E.BinaryMultiply,
             ast.Div: E.BinaryDivide,
+            ast.Mod: E.BinaryModulo,
             ast.LShift: E.BinaryLShift,
             ast.RShift: E.BinaryRShift,
             ast.And: E.LogicalAnd,
