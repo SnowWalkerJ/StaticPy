@@ -162,7 +162,7 @@ class BaseTranslator:
             start, stop, step = args[0], args[1], 1
         else:
             start, stop, step = args
-        return self._run_nodes(node.body, body=B.For(target, start, stop, step, None))
+        return self._run_nodes(node.body, block=B.For(target, start, stop, step, None))
 
     # ============= statements =============
     def Pass(self, node):
