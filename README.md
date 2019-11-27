@@ -54,13 +54,39 @@ will do the right transformation for you. However, only element-wise operations 
 return an array for now. We are planning on removing this restriction soon.
 
 ```python
-from staticpy import jit, Int
+from staticpy import jit, Double
 
 @jit
-def sum(numbers: Int[:]):
+def mysum(numbers: Double[:]) -> Double:
     i: Int
-    s: Int = 0
+    s: Double = 0.0
     for i in range(len(numbers)):
         s += numbers[i]
     return s
 ```
+
+## benchmark
+
+```python
+import numpy as np
+import numba
+from staticpy import jit, Double
+
+def mysum(numbers: Double[:]) -> Double:
+    i: Int
+    s: Double = 0.0
+    for i in range(len(numbers)):
+        s += numbers[i]
+    return s
+
+# mysum: Python
+mysum2 = jit(mysum)
+# mysum2: StaticPy
+mysum3 = numba.jit(numba.float64(numba.float64[:]))(mysum)
+# mysum3: Numba
+mysum4 = np.sum
+# mysum4: Numpy
+```
+
+The relative speed of the four functions are as following (Python is 1).
+![](assets/benchmark.png)
