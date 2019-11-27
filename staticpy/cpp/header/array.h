@@ -1,5 +1,7 @@
+#pragma once
 #include <vector>
 #include <stdarg.h>
+#include <stdexcept>
 #ifdef PYBIND
 #include <pybind11/pybind11.h>
 namespace py = pybind11;
@@ -20,23 +22,6 @@ public:
     #endif
     Array(T* data, std::vector<long>& shape, std::vector<long>& strides, long itemsize) : 
         data(data), shape(shape.data()), strides(strides.data()), itemsize(itemsize) {
-    }
-
-    inline T& operator[](long index) {
-        return data[index];
-    }
-
-    template<typename Integer>
-    inline T& getData(Integer index0, ...) {
-        // transform numpy-like index to C-like index
-        va_list args;
-        va_start(args, index0);
-        long offset = (long)index0 * strides[0];
-        for (unsigned short i = 1; i < ndim; i++) {
-            offset += (long)va_arg(args, Integer) * strides[i];
-        }
-        va_end(args);
-        return *(T *)((char *)data + offset);
     }
 
 };
