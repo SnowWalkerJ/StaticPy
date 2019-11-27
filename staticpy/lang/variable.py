@@ -27,8 +27,15 @@ class ArrayVariable(Variable):
         self.itemsize = type.itemsize
 
     def __getitem__(self, indices):
+        # TODO: optionally wrap-around indices
+        if not isinstance(indices, tuple):
+            indices = (indices, )
         indices = [x.value if isinstance(x, E.Const) else x for x in indices]
-        return E.CallFunction(E.GetAttr(self, "getData"), indices)
+        strides = E.GetAttr(self, Name("strides"))
+        index = E.GetItem(strides, E.Const(0)) * indices[0]
+        for i, idx in enumerate(indices[1:], 1):
+            index = index + E.GetItem(strides, E.Const(i)) * idx
+        return E.GetItem(E.GetAttr(self, "data"), index / self.itemsize)
 
     def __len__(self):
         return self.type.shape[0]
