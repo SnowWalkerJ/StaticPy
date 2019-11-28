@@ -64,11 +64,12 @@ class OtherType(DerivedType):
 
 
 class ArrayType(DerivedType):
-    def __init__(self, base, shape):
+    def __init__(self, base, shape, is_continuous):
         self.base = base
         self.shape = shape
         self.dim = len(shape)
         self.itemsize = base.size
+        self.is_continuous = is_continuous
 
     def instantiate(self):
         from .. import variable as V

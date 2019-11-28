@@ -31,10 +31,16 @@ class ArrayVariable(Variable):
         if not isinstance(indices, tuple):
             indices = (indices, )
         indices = [x.value if isinstance(x, E.Const) else x for x in indices]
-        strides = E.GetAttr(self, Name("strides"))
-        index = E.GetItem(strides, E.Const(0)) * indices[0]
-        for i, idx in enumerate(indices[1:], 1):
-            index = index + E.GetItem(strides, E.Const(i)) * idx
+        if self.type.is_continuous:
+            strides = [s * self.type.base.size for s in self._shape[1:]] + [self.type.base.size]
+            index = 0
+            for idx, stride in zip(indices, strides):
+                index += idx * stride
+        else:
+            strides = E.GetAttr(self, Name("strides"))
+            index = E.GetItem(strides, E.Const(0)) * indices[0]
+            for i, idx in enumerate(indices[1:], 1):
+                index = index + E.GetItem(strides, E.Const(i)) * idx
         return E.GetItem(E.GetAttr(self, "data"), index / self.itemsize)
 
     def __len__(self):

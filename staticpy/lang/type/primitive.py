@@ -15,13 +15,22 @@ class PrimitiveType(TypeBase):
 
     def __getitem__(self, shape):
         from .derived import ArrayType
+        from .. import expression as E
         if not isinstance(shape, (list, tuple)):
             shape = (shape, )
+        shape = tuple(x.value if isinstance(x, E.Const) else x for x in shape)
+        if isinstance(shape[-1], bool):
+            is_continuous = shape[-1]
+            shape = shape[:-1]
+            if is_continuous and any(not isinstance(x, int) for x in shape[1:]):
+                raise TypeError("continuous array requires constant shape except for the first dimension")
+        else:
+            is_continuous = False
         shape = tuple(s if isinstance(s, int) else ... for s in shape)
         session = get_session()
-        key = (self, shape)
+        key = (self, shape, is_continuous)
         if key not in session.array_types:
-            session.array_types[key] = ArrayType(self, shape)
+            session.array_types[key] = ArrayType(self, shape, is_continuous)
         return session.array_types[key]
 
     def cname(self):
