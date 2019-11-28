@@ -4,6 +4,7 @@ import functools
 import os
 import sys
 
+from .common.logging import error
 from .session import get_session, new_session
 from .lang import (
     type as T,
@@ -98,8 +99,8 @@ class BaseTranslator:
             if not self.err_handled and hasattr(node, 'lineno'):
                 line = self.source.split('\n')[node.lineno]
                 src = f"{node.lineno} {line}"
-                print(src, file=sys.stderr)
-                print(" " * (len(f"{node.lineno} ") + node.col_offset) + "^", file=sys.stderr)
+                error(src, file=sys.stderr)
+                error(" " * (len(f"{node.lineno} ") + node.col_offset) + "^", file=sys.stderr)
                 self.err_handled = True
             raise
 
@@ -232,6 +233,12 @@ class BaseTranslator:
         self.ctx[varname] = target
         return S.VariableDeclaration(target, value)
 
+    def Break(self, node):
+        return S.Break()
+
+    def Continue(self, node):
+        return S.Continue()
+
     # ============= expressions =============
     def Name(self, node):
         ctx = self.ctx
@@ -284,6 +291,13 @@ class BaseTranslator:
     def Attribute(self, node):
         obj = self._run_node(node.value)
         return getattr(obj, node.attr)
+
+    def UnaryOp(self, node):
+        op_map = {
+            ast.USub: E.UnaryNegative,
+        }
+        op = op_map[type(node.op)]
+        return op(self._run_node(node.operand))
 
     def BinOp(self, node):
         op_map = {

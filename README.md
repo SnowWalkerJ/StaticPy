@@ -67,26 +67,14 @@ def mysum(numbers: Double[:]) -> Double:
 
 ## benchmark
 
-```python
-import numpy as np
-import numba
-from staticpy import jit, Double
-
-def mysum(numbers: Double[:]) -> Double:
-    i: Int
-    s: Double = 0.0
-    for i in range(len(numbers)):
-        s += numbers[i]
-    return s
-
-# mysum: Python
-mysum2 = jit(mysum)
-# mysum2: StaticPy
-mysum3 = numba.jit(numba.float64(numba.float64[:]))(mysum)
-# mysum3: Numba
-mysum4 = np.sum
-# mysum4: Numpy
-```
 
 The relative speed of the four functions are as following (Python is 1).
 ![](assets/benchmark.png)
+
+
+|   Task  |Python| Numba |StaticPy|
+|:-------:|:----:|:-----:|:------:|
+|Sum      |1     |193.543|172.849 |
+|Recursive|1     |94.5476|515.277 |
+|Iteration|1     |917.701|489.736 |
+|SimTrade |1     |734.473|534.163 |

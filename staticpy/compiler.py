@@ -44,7 +44,7 @@ class Compiler:
         sources = " ".join(sources)
         includes = get_include_path()
         output_filename = get_target_filepath(target_path, libname)
-        command = f"c++ -O3 -Wall -shared -std=c++11 -fPIC {includes} {sources} -o {output_filename}"
+        command = f"c++ -O3 -mavx2 -Wall -shared -std=c++11 -fPIC {includes} {sources} -o {output_filename}"
         if platform.system() == "Darwin":
             command += " -undefined dynamic_lookup"
         logging.info(command)
