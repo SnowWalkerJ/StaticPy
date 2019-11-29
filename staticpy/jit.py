@@ -69,9 +69,11 @@ class JitFunction:
                 "name": name,
                 "inputs": inputs,
                 "output": block.output,
+                "doc": block.doc,
             })
 
     def _wrap_function(self, name, inputs, output, block):
+        doc = block.doc
         wrapped_inputs = [(T.ReferenceType(t) if isinstance(t, T.ArrayType) else t, n) for (t, n) in inputs]
         funcs = [B.Function(name, wrapped_inputs, output, block.statements)]
         # if any, wrap the array types
@@ -97,7 +99,7 @@ class JitFunction:
                         wrapped_inputs.append((t, n))
                         params.append(V.variable(n, t))
                 S.returns(E.CallFunction(name, tuple(params)))
-            block = B.Function(name, wrapped_inputs, output, block.statements)
+            block = B.Function(name, wrapped_inputs, output, block.statements, doc)
             m = M.IfDefMacro("PYBIND")
             m.add_statement(S.BlockStatement(block))
             funcs.append(m)

@@ -101,10 +101,11 @@ class While(Scope):
 
 
 class Function(Scope):
-    def __init__(self, name, inputs, output, statements, is_method=False, is_constructor=False):
+    def __init__(self, name, inputs, output, statements, doc="", is_method=False, is_constructor=False):
         self.name = name
         self.inputs = inputs
         self.output = output
+        self.doc = doc
         self.is_method = is_method
         self.is_constructor = is_constructor
         super().__init__(statements)

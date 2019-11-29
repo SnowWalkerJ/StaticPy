@@ -120,6 +120,16 @@ class BaseTranslator:
             self.ctx.pop()
         return block
 
+    @staticmethod
+    def _try_get_doc(node):
+        if isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Str):
+            doc = node.body[0].value.s
+            body = node.body[1:]
+        else:
+            doc = ""
+            body = node.body
+        return doc, body
+
     # ============= blocks =============
     def Module(self, node):
         return self._run_nodes(node.body)
@@ -136,7 +146,8 @@ class BaseTranslator:
         self.ctx[name] = V.Name(name)
 
         new_env = {v.name: v for v in args}
-        block = self._run_nodes(node.body, new_env, B.Function(name, inputs, returns, None))
+        doc, body = self._try_get_doc(node)
+        block = self._run_nodes(body, new_env, B.Function(name, inputs, returns, None, doc))
         return block
 
     def If(self, node):
