@@ -60,7 +60,7 @@ class JitFunction:
             global_block = get_block_or_create('global')
         for func in self.funcs:
             name = func.__name__
-            translator = BaseTranslator()
+            translator = BaseTranslator(session=sess)
             block = translator.translate(inspect.getsource(func)).statements[0].block
             funcs, inputs = self._wrap_function(name, block.inputs, block.output, block)
             for func in funcs:
