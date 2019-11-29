@@ -11,14 +11,20 @@ class Value(abc.ABC):
         return E.StaticCast(self, type)
 
     def __add__(self, other):
+        if isinstance(other, int) and other == 0:
+            return self
         from .expression import BinaryAdd
         return BinaryAdd(self, other)
 
     def __radd__(self, other):
+        if isinstance(other, int) and other == 0:
+            return self
         from .expression import BinaryAdd
         return BinaryAdd(other, self)
 
     def __sub__(self, other):
+        if isinstance(other, int) and other == 0:
+            return self
         from .expression import BinarySubtract
         return BinarySubtract(self, other)
 
@@ -27,14 +33,20 @@ class Value(abc.ABC):
         return BinarySubtract(other, self)
 
     def __mul__(self, other):
+        if isinstance(other, int) and other == 1:
+            return self
         from .expression import BinaryMultiply
         return BinaryMultiply(self, other)
 
     def __rmul__(self, other):
+        if isinstance(other, int) and other == 1:
+            return self
         from .expression import BinaryMultiply
         return BinaryMultiply(other, self)
 
     def __div__(self, other):
+        if isinstance(other, int) and other == 1:
+            return self
         from .expression import BinaryDivide
         return BinaryDivide(self, other)
 

@@ -1,4 +1,4 @@
-.Phony: clean test
+.Phony: clean test benchmark
 
 clean:
 	rm tests/*.so
@@ -6,3 +6,6 @@ clean:
 
 test:
 	python -m unittest discover -s tests
+
+benchmark: benchmark.py
+	python benchmark.py

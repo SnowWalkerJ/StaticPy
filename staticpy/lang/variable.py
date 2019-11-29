@@ -15,9 +15,16 @@ class ArrayVariable(Variable):
     class ShapeProxy:
         def __init__(self, var):
             self.var = var
+            self._shape = var._shape
+
+        def __len__(self):
+            return len(self._shape)
 
         def __getitem__(self, i):
-            return self.var._shape[i] if isinstance(i, int) else E.GetItem(E.GetAttr(self.var, "shape"), i)
+            if isinstance(i, int) and isinstance(self._shape[i], int):
+                return self._shape[i]
+            else:
+                return E.GetItem(E.GetAttr(self.var, "shape"), i)
 
     def __init__(self, name, type):
         super().__init__(name, type)
@@ -32,16 +39,17 @@ class ArrayVariable(Variable):
             indices = (indices, )
         indices = [x.value if isinstance(x, E.Const) else x for x in indices]
         if self.type.is_continuous:
-            strides = [s * self.type.base.size for s in self._shape[1:]] + [self.type.base.size]
-            index = 0
-            for idx, stride in zip(indices, strides):
-                index += idx * stride
+            strides = [self.shape[i] for i in range(1, self.dim)] + [1]
+            index = indices[0] * strides[0]
+            for idx, stride in zip(indices[1:], strides[1:]):
+                index = index + idx * stride
         else:
             strides = E.GetAttr(self, Name("strides"))
             index = E.GetItem(strides, E.Const(0)) * indices[0]
             for i, idx in enumerate(indices[1:], 1):
                 index = index + E.GetItem(strides, E.Const(i)) * idx
-        return E.GetItem(E.GetAttr(self, "data"), index / self.itemsize)
+            index = index / self.itemsize
+        return E.GetItem(E.GetAttr(self, "data"), index)
 
     def __len__(self):
         return self.type.shape[0]

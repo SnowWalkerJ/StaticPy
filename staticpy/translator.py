@@ -120,6 +120,16 @@ class BaseTranslator:
             self.ctx.pop()
         return block
 
+    @staticmethod
+    def _try_get_doc(node):
+        if isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Str):
+            doc = node.body[0].value.s
+            body = node.body[1:]
+        else:
+            doc = ""
+            body = node.body
+        return doc, body
+
     # ============= blocks =============
     def Module(self, node):
         return self._run_nodes(node.body)
@@ -136,7 +146,8 @@ class BaseTranslator:
         self.ctx[name] = V.Name(name)
 
         new_env = {v.name: v for v in args}
-        block = self._run_nodes(node.body, new_env, B.Function(name, inputs, returns, None))
+        doc, body = self._try_get_doc(node)
+        block = self._run_nodes(body, new_env, B.Function(name, inputs, returns, None, doc))
         return block
 
     def If(self, node):
@@ -229,9 +240,14 @@ class BaseTranslator:
         varname = node.target.id
         value = self._run_node(node.value) if node.value is not None else None
         type = self._run_node(node.annotation)
-        target = V.variable(varname, type)
+        if isinstance(type, E.Const) and type.value.lower() == "const":
+            target = value
+            ret = S.SingleLineComment(f"const {varname} = {value.value}")
+        else:
+            target = V.variable(varname, type)
+            ret = S.VariableDeclaration(target, value)
         self.ctx[varname] = target
-        return S.VariableDeclaration(target, value)
+        return ret
 
     def Break(self, node):
         return S.Break()
@@ -247,6 +263,9 @@ class BaseTranslator:
             return ctx[name]
         except KeyError:
             raise NameError(f"Can't find name `{name}`")
+
+    def Constant(self, node):
+        return E.Const(node.value)
 
     def NameConstant(self, node):
         return E.Const(node.value)

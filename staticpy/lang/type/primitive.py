@@ -4,7 +4,7 @@ from .base import TypeBase
 
 class PrimitiveType(TypeBase):
     def __init__(self, name, base=None, ctype=None, size=None, compatible_type=None):
-        self.name = f'nf.{name}'
+        self.name = f'staticpy.{name}'
         self.base = base
         self.ctype = ctype
         self.size = size
