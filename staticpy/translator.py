@@ -229,9 +229,14 @@ class BaseTranslator:
         varname = node.target.id
         value = self._run_node(node.value) if node.value is not None else None
         type = self._run_node(node.annotation)
-        target = V.variable(varname, type)
+        if isinstance(type, E.Const) and type.value.lower() == "const":
+            target = value
+            ret = S.SingleLineComment(f"const {varname} = {value.value}")
+        else:
+            target = V.variable(varname, type)
+            ret = S.VariableDeclaration(target, value)
         self.ctx[varname] = target
-        return S.VariableDeclaration(target, value)
+        return ret
 
     def Break(self, node):
         return S.Break()
