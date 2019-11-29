@@ -264,6 +264,9 @@ class BaseTranslator:
         except KeyError:
             raise NameError(f"Can't find name `{name}`")
 
+    class Constant(self, node):
+        return E.Const(node.value)
+
     def NameConstant(self, node):
         return E.Const(node.value)
 
