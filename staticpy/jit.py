@@ -21,17 +21,15 @@ from .lang import (
 )
 
 
-class JitFunction:
-    def __init__(self, func):
-        self.name = func.__name__
-        self.funcs = [func]
-        self._compiled = False
-        self._compiled_func = None
+class JitObject:
+    def __init__(self, name, obj):
+        self.name = name
+        self.obj = obj
+        self.source = self._get_source(obj)
         self._signatures = []
-        self._target_path = os.path.dirname(inspect.getabsfile(self.funcs[0]))
-
-    def overload(self, func):
-        self.funcs.append(func)
+        self._compiled = False
+        self._compiled_obj = None
+        self._source_path, self._target_path = self._get_paths(obj)
 
     def compile(self):
         sess = new_session()
@@ -40,37 +38,39 @@ class JitFunction:
         self._compile(sess)
 
     def load(self):
-        module_name = "lib" + self.name
+        module_name = self.name
         if module_name in sys.modules:
             del sys.modules[module_name]
-        sys.path.insert(0, self._target_path)
-        module = importlib.import_module(module_name)
-        self._compiled_func = getattr(module, self.name)
-
-    def __call__(self, *args):
-        if not self._compiled:
-            if get_option("force_compile", False) or self._need_update():
-                self.compile()
-            self.load()
-            self._compiled = True
-        return self._compiled_func(*args)
+        sys.path.insert(0, os.path.dirname(self._target_path))
+        try:
+            module = importlib.import_module(module_name)
+            self._compiled_obj = getattr(module, self.name)
+        finally:
+            del sys.path[0]
 
     def _translate(self, sess):
-        with sess:
-            global_block = get_block_or_create('global')
-        for func in self.funcs:
-            name = func.__name__
-            translator = BaseTranslator(session=sess)
-            block = translator.translate(inspect.getsource(func)).statements[0].block
-            funcs, inputs = self._wrap_function(name, block.inputs, block.output, block)
-            for func in funcs:
-                global_block.add_statement(S.BlockStatement(func))
-            self._signatures.append({
-                "name": name,
-                "inputs": inputs,
-                "output": block.output,
-                "doc": block.doc,
-            })
+        pass
+
+    @staticmethod
+    def _get_source(obj):
+        if isinstance(obj, str):
+            with open(obj, "r") as f:
+                return f.read()
+        else:
+            return inspect.getsource(obj)
+
+    @staticmethod
+    def _get_paths(obj):
+        if inspect.ismodule(obj) or inspect.isfunction(obj) or inspect.isclass(obj):
+            sourcepath = inspect.getsourcefile(obj)
+            path = os.path.dirname(sourcepath)
+            name = obj.__name__
+        else:
+            sourcepath = obj
+            path = os.path.dirname(sourcepath)
+            name = os.path.basename(obj).split(".")[0]
+        targetpath = get_target_filepath(path, name)
+        return sourcepath, targetpath
 
     def _wrap_function(self, name, inputs, output, block):
         doc = block.doc
@@ -78,8 +78,6 @@ class JitFunction:
         funcs = [B.Function(name, wrapped_inputs, output, block.statements)]
         # if any, wrap the array types
         if any(isinstance(type, T.ArrayType) for type, name in inputs):
-            # TODO: check shape and itemsize
-            # TODO: shorten this function
             wrapped_inputs = []
             params = []
             block = B.EmptyBlock()
@@ -115,25 +113,72 @@ class JitFunction:
         funcs = []
         for sig in self._signatures:
             funcs.append(PyBindFunction(**sig))
-        PyBindFunctionGroup("lib" + self.name, funcs).setup(sess)
+        PyBindFunctionGroup(self.name, funcs).setup(sess)
 
     def _compile(self, sess):
         compiler = Compiler()
         compiler.add_template(".cpp", CppTemplate())
-        compiler.run(sess, self._target_path, libname="lib" + self.name)
+        compiler.run(sess, os.path.dirname(self._target_path), libname=self.name)
 
     def _need_update(self):
-        targetfile = get_target_filepath(self._target_path, libname="lib" + self.name)
-        if not os.path.exists(targetfile):
+        if not os.path.exists(self._target_path):
             return True
-        target_mtime = os.path.getmtime(targetfile)
-        for func in self.funcs:
-            sourcefile = inspect.getabsfile(func)
-            if os.path.getmtime(sourcefile) > target_mtime:
-                return True
-        return False
+        target_mtime = os.path.getmtime(self._target_path)
+        source_mtime = os.path.getmtime(self._source_path)
+        return source_mtime > target_mtime
+
+
+class JitModule(JitObject):
+    def _translate(self, sess):
+        translator = BaseTranslator(session=sess)
+        module_block = translator.translate(self.source)
+        sess.blocks['global'] = module_block
+        for stmt in module_block.statements:
+            if isinstance(stmt, S.BlockStatement) and isinstance(stmt.block, B.Function):
+                block = stmt.block
+                funcs, inputs = self._wrap_function(block.name, block.inputs, block.output, block)
+                for func in funcs[1:]:
+                    module_block.add_statement(S.BlockStatement(func))
+                self._signatures.append({
+                    "name": block.name,
+                    "inputs": inputs,
+                    "output": block.output,
+                    "doc": block.doc,
+                })
+
+
+class JitFunction(JitObject):
+    def __init__(self, func):
+        super().__init__(func.__name__, func)
+
+    def __call__(self, *args):
+        if not self._compiled:
+            if get_option("force_compile", False) or self._need_update():
+                self.compile()
+            self.load()
+            self._compiled = True
+            self.__doc__ = self._compiled_obj.__doc__
+        return self._compiled_obj(*args)
+
+    def _translate(self, sess):
+        with sess:
+            global_block = get_block_or_create('global')
+
+        translator = BaseTranslator(session=sess)
+        block = translator.translate(self.source).statements[0].block
+        funcs, inputs = self._wrap_function(self.name, block.inputs, block.output, block)
+        for func in funcs:
+            global_block.add_statement(S.BlockStatement(func))
+        self._signatures.append({
+            "name": self.name,
+            "inputs": inputs,
+            "output": block.output,
+            "doc": block.doc,
+        })
 
 
 def jit(obj):
     if inspect.isfunction(obj):
         return JitFunction(obj)
+    elif inspect.ismodule(obj) or isinstance(obj, str):
+        return JitModule(obj)
