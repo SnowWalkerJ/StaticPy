@@ -1,1 +1,2 @@
 include staticpy/VERSION
+include staticpy/cpp/header/array.h

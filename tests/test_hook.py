@@ -18,5 +18,5 @@ class HookTest(unittest.TestCase):
         self.assertTrue(inspect.isbuiltin(myhook.func))
 
     def tearDown(self):
-        self.hook_module.remove_hook(self.hook_module.finder)
+        self.hook_module.remove_hook()
         os.remove("myhook.py")

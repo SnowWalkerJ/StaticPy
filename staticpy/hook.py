@@ -43,7 +43,7 @@ def install_hook():
     return finder
 
 
-def remove_hook(finder):
+def remove_hook():
     sys.meta_path.remove(finder)
 
 

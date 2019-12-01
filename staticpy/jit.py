@@ -69,7 +69,8 @@ class JitObject:
             sourcepath = obj
             path = os.path.dirname(sourcepath)
             name = os.path.basename(obj).split(".")[0]
-        targetpath = get_target_filepath(path, name)
+        sourcepath = os.path.abspath(sourcepath)
+        targetpath = os.path.abspath(get_target_filepath(path, name))
         return sourcepath, targetpath
 
     def _wrap_function(self, name, inputs, output, block):
