@@ -71,11 +71,12 @@ class Else(Scope):
 
 
 class For(Scope):
-    def __init__(self, variable, start, stop, step, statements):
+    def __init__(self, variable, start, stop, step, statements, declare=False):
         self.variable = variable
         self.start = start
         self.stop = stop
         self.step = step
+        self.declare = declare
         super().__init__(statements)
 
     def prefix(self):
@@ -88,7 +89,10 @@ class For(Scope):
             steping = f"{var}++"
         elif step == -1:
             steping = f"{var}--"
-        return f"for({var} = {start}; {var} < {stop}; {steping}) {{"
+        if self.declare:
+            return f"for({var.type}{var} = {start}; {var} < {stop}; {steping}) {{"
+        else:
+            return f"for({var} = {start}; {var} < {stop}; {steping}) {{"
 
 
 class While(Scope):

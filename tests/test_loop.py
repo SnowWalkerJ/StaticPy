@@ -8,7 +8,6 @@ class LoopTest(unittest.TestCase):
     def test_for(self):
         @jit
         def fn_for(n: Int) -> Int:
-            i: Int
             s: Int = 0
             for i in range(n):
                 s += i

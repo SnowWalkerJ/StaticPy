@@ -167,7 +167,6 @@ class BaseTranslator:
         return block
 
     def For(self, node):
-        target = self._run_node(node.target)
         if node.iter.func.id != "range":
             raise SyntaxError("Only support for-range")
         args = [self._run_node(x) for x in node.iter.args]
@@ -177,7 +176,34 @@ class BaseTranslator:
             start, stop, step = args[0], args[1], 1
         else:
             start, stop, step = args
-        return self._run_nodes(node.body, block=B.For(target, start, stop, step, None))
+        try:
+            target = self._run_node(node.target)
+            declare = False
+            env = {}
+        except NameError:
+            if isinstance(node.target, ast.Name):
+                type = self._determine_type(start, stop)
+                target = V.Variable(node.target.id, type)
+                declare = True
+                env = {node.target.id: target}
+            else:
+                raise
+        return self._run_nodes(node.body, env, block=B.For(target, start, stop, step, None, declare))
+
+    @staticmethod
+    def _determine_type(start, end):
+        int_limit = 1 << 31
+        if isinstance(start, ast.Num):
+            start = start.n
+        if isinstance(end, ast.Num):
+            end = end.n
+        if ((isinstance(start, V.Variable) and start.type is T.Long) or
+            (isinstance(end, V.Variable) and end.type is T.Long) or
+            (isinstance(start, int) and not -int_limit < start < int_limit) or
+            (isinstance(end, int) and not -int_limit < end < int_limit)):
+            return T.Long
+        else:
+            return T.Int
 
     # ============= statements =============
     def Import(self, node):
