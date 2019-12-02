@@ -1,6 +1,7 @@
 import ast
 import collections
 import functools
+import inspect
 import os
 import sys
 
@@ -23,12 +24,6 @@ class ContextStack:
         "float": T.Float,
         "double": T.Double,
         "str": T.String,
-        "Int": T.Int,
-        "Long": T.Long,
-        "Float": T.Float,
-        "Double": T.Double,
-        "String": T.String,
-        "T": T,
     }
 
     def __init__(self, globals={}):
@@ -207,36 +202,22 @@ class BaseTranslator:
 
     # ============= statements =============
     def Import(self, node):
+        import importlib
         for target in node.names:
             name = target.name
-            alias = target.asname
-            if alias is None:
-                # import name
-                # include <name>
-                name = name.split(".")
-                name[-1] = ".".join(name[-1].split("__"))
-                name = "<" + os.path.join(name) + ">"
-                return M.StatementMacro("include", name)
-            else:
-                # import name as alias
-                # namespace alias = name
-                name = functools.reduce(E.ScopeAnalysis, map(V.Name, name.split(".")))
-                var = V.Variable(alias, T.OtherType(V.Name("namespace")))
-                self.ctx[alias] = var
-                return S.VariableDeclaration(var, name)
+            alias = target.asname or name
+            module = importlib.import_module(name)
+            self.ctx[alias] = module
 
     def ImportFrom(self, node):
+        import importlib
+        module = importlib.import_module(node.module)
         for target in node.names:
-            if target == "*":
-                # from module import *
-                # TODO: using namespace module
-                raise NotImplementedError("import from *")
+            if target.name == "*":
+                for name, obj in inspect.getmembers(module):
+                    self.ctx[name] = obj
             else:
-                # from module import name
-                # auto name = module::name
-                mod = functools.reduce(E.ScopeAnalysis, map(V.Name, node.module.split(".")))
-                name = target.asname if target.asname is not None else target.name
-                self.ctx[name] = E.ScopeAnalysis(mod, V.Name(target.name))
+                self.ctx[target.asname or target.name] = getattr(module, target.name)
 
     def Pass(self, node):
         return S.SingleLineComment("pass")
@@ -275,6 +256,10 @@ class BaseTranslator:
         self.ctx[varname] = target
         return ret
 
+    def Expr(self, node):
+        expr = self._run_node(node)
+        return S.ExpressionStatement(expr)
+
     def Break(self, node):
         return S.Break()
 
@@ -287,8 +272,8 @@ class BaseTranslator:
         name = node.id
         try:
             return ctx[name]
-        except KeyError:
-            raise NameError(f"Can't find name `{name}`")
+        except KeyError as e:
+            raise NameError(f"Can't find name `{name}`") from e
 
     def Constant(self, node):
         return E.Const(node.value)

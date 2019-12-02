@@ -149,8 +149,10 @@ class JitModule(JitObject):
 
 
 class JitFunction(JitObject):
-    def __init__(self, func):
+    def __init__(self, func, env={}):
         super().__init__(func.__name__, func)
+        self.env = env.copy()
+        self.env[func.__name__] = V.Name(func.__name__)
 
     def __call__(self, *args):
         if not self._compiled:
@@ -164,8 +166,7 @@ class JitFunction(JitObject):
     def _translate(self, sess):
         with sess:
             global_block = get_block_or_create('global')
-
-        translator = BaseTranslator(session=sess)
+        translator = BaseTranslator(self.env, session=sess)
         block = translator.translate(self.source).statements[0].block
         funcs, inputs = self._wrap_function(self.name, block.inputs, block.output, block)
         for func in funcs:
@@ -180,6 +181,8 @@ class JitFunction(JitObject):
 
 def jit(obj):
     if inspect.isfunction(obj):
-        return JitFunction(obj)
+        frame = inspect.currentframe().f_back
+        env = frame.f_globals
+        return JitFunction(obj, env)
     elif inspect.ismodule(obj) or isinstance(obj, str):
         return JitModule(obj)
