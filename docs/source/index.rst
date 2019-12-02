@@ -10,6 +10,7 @@ Welcome to StaticPy's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   introduction
    getstarted
    userguide
    contribute

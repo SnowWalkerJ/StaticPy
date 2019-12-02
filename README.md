@@ -9,6 +9,8 @@ You can write a C++ template and embed the generated code in your template to fo
 
 Optionally, it can bind the C++ code back to Python using Pybind11 to grant super speed to Python.
 
+[Documentation](http://staticpy.readthedocs.io/)
+
 ## Compare to alternatives
 
 ### Compare to Cython
