@@ -126,5 +126,3 @@ def jit(obj):
         frame = inspect.currentframe().f_back
         env = frame.f_globals
         return JitFunction(obj, env)
-    elif inspect.ismodule(obj) or isinstance(obj, str):
-        return JitModule(obj)

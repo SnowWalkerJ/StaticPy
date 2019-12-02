@@ -67,5 +67,9 @@ class Value(abc.ABC):
         return BinaryRShift(self, other)
 
     def __call__(self, *args):
-        from .expression import FunctionCall
-        return FunctionCall(self, *args)
+        from .expression import CallFunction
+        return CallFunction(self, *args)
+
+    def __getitem__(self, index):
+        from .expression import GetItem
+        return GetItem(self, index)

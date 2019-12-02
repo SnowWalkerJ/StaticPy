@@ -57,7 +57,6 @@ class BindObject(ABC):
         pass
 
     def _wrap_function(self, block):
-        doc = block.doc
         wrapped_inputs = [(T.ReferenceType(t) if isinstance(t, T.ArrayType) else t, n) for (t, n) in block.inputs]
         # if any, wrap the array types
         if any(isinstance(type, T.ArrayType) for type, name in block.inputs):
@@ -145,4 +144,3 @@ class PyBindFunction(BindObject):
     @property
     def doc(self):
         return self._doc
-

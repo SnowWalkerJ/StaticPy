@@ -127,6 +127,10 @@ class BaseTranslator:
 
     # ============= blocks =============
     def Module(self, node):
+        for child in node.body:
+            if isinstance(child, (ast.FunctionDef, ast.ClassDef)):
+                name = child.name
+                self.ctx[name] = V.Name(name)
         return self._run_nodes(node.body)
 
     def ClassDef(self, node):
@@ -137,8 +141,6 @@ class BaseTranslator:
         args = [self._run_node(arg) for arg in node.args.args]
         inputs = [(v.type, v.name) for v in args]
         returns = self._run_node(node.returns) if node.returns is not None else T.Void
-
-        self.ctx[name] = V.Name(name)
 
         new_env = {v.name: v for v in args}
         doc, body = self._try_get_doc(node)
@@ -192,10 +194,11 @@ class BaseTranslator:
             start = start.n
         if isinstance(end, ast.Num):
             end = end.n
-        if ((isinstance(start, V.Variable) and start.type is T.Long) or
-            (isinstance(end, V.Variable) and end.type is T.Long) or
-            (isinstance(start, int) and not -int_limit < start < int_limit) or
-            (isinstance(end, int) and not -int_limit < end < int_limit)):
+        if (
+                (isinstance(start, V.Variable) and start.type is T.Long) or
+                (isinstance(end, V.Variable) and end.type is T.Long) or
+                (isinstance(start, int) and not -int_limit < start < int_limit) or
+                (isinstance(end, int) and not -int_limit < end < int_limit)):
             return T.Long
         else:
             return T.Int
