@@ -78,7 +78,7 @@ because it doesn't exist in Python. The `elif` is a little tricky, though. It is
 This is sementically equivalent in C/C++, but not quite human-friendly to read.
 
 Another commonly used feature is `for`. So far only `for x in range(...)` is valid in StaticPy. It is translated into
-`for (i = start; i < end; i += step) {}`. A general form of for-each is not supported. And we don't intend to in
-the short term.
+`for (i = start; i < end; i += step) {}`. A general form of for-each is neither supported nor intend to be supported
+in the short term.
 
 

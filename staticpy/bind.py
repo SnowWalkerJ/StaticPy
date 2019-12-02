@@ -35,9 +35,9 @@ class PyBindModuleScope(B.Scope):
 
 
 class BindObject(ABC):
-    def __init__(self, obj):
+    def __init__(self, name, obj):
         self.obj = obj
-        self.name = obj.__name__
+        self.name = name
 
     @property
     def doc(self):
@@ -56,37 +56,69 @@ class BindObject(ABC):
     def define(self):
         pass
 
+    def _wrap_function(self, block):
+        doc = block.doc
+        wrapped_inputs = [(T.ReferenceType(t) if isinstance(t, T.ArrayType) else t, n) for (t, n) in block.inputs]
+        # if any, wrap the array types
+        if any(isinstance(type, T.ArrayType) for type, name in block.inputs):
+            wrapped_inputs = []
+            params = []
+            wrapped_func = B.EmptyBlock()
+            auto_t = T.OtherType(V.Name("auto"))
+            with wrapped_func:
+                for t, n in block.inputs:
+                    if isinstance(t, T.ArrayType):
+                        buffer_t = T.OtherType(E.ScopeAnalysis(V.Name("py"), V.Name("buffer")))
+                        wrapped_inputs.append((buffer_t, n))
+                        v_in = V.variable(n, buffer_t)
+                        v_out = V.variable("_" + n, t)
+                        buffer_info = V.variable(f"buffer_info_{n}", auto_t)
+                        S.declare(buffer_info, E.CallFunction(E.GetAttr(v_in, "request"), ()))
+                        S.declare(v_out, E.CallFunction(t.cname(), (buffer_info, )))
+                        params.append(v_out)
+                    else:
+                        wrapped_inputs.append((t, n))
+                        params.append(V.variable(n, t))
+                S.returns(E.CallFunction(block.name, tuple(params)))
+            wrapped_func = B.Function(block.name, wrapped_inputs, block.output, wrapped_func.statements, block.doc)
+            m = M.IfDefMacro("PYBIND")
+            m.add_statement(S.BlockStatement(wrapped_func))
+            block.parent.add_statement(S.BlockStatement(m))
+            inputs = wrapped_inputs
+        else:
+            inputs = [(t.wrapped(), n) for t, n in block.inputs]
+        return inputs
+
 
 class PyBindModule(BindObject):
-    def __init__(self, module):
-        super().__init__(module)
+    def __init__(self, name, module):
+        super().__init__(name, module)
 
     def define(self):
         m = V.Name("m")
         with M.ifdefBM("PYBIND"):
-            block = PyBindModuleScope(self.obj.__name__)
+            block = PyBindModuleScope(self.name)
             with block:
                 if self.doc:
                     S.assign(V.Name("m.doc()"), self.doc)
-                for _, value in getmembers(self.obj):
-                    if isinstance(value, BindObject):
-                        value.bind(m)
+                for stmt in self.obj.statements:
+                    if isinstance(stmt, S.BlockStatement) and isinstance(stmt.block, B.Function):
+                        PyBindFunction(stmt.block.name, stmt.block).bind(m)
             get_session().current_block.add_statement(S.BlockStatement(block))
 
 
 class PyBindFunction(BindObject):
-    def __init__(self, name, inputs, output, is_method=False, is_constructor=False, doc=""):
-        self.name = name
-        self.inputs = inputs
-        self.output = output
+    def __init__(self, name, func_block, is_method=False, is_constructor=False):
+        self.block = func_block
+        self.name = func_block.name
         self.is_method = is_method
         self.is_constructor = is_constructor
-        self._doc = doc
+        self._doc = func_block.doc
 
     def define(self):
         m = V.Name("m")
         with M.ifdefBM("PYBIND"):
-            block = PyBindModuleScope(self.obj.__name__)
+            block = PyBindModuleScope(self.name)
             with block:
                 if self.doc:
                     S.assign(V.Name("m.doc()"), self.doc)
@@ -94,12 +126,13 @@ class PyBindFunction(BindObject):
             get_session().current_block.add_statement(S.BlockStatement(block))
 
     def bind(self, parent, namespace=None):
+        inputs = self._wrap_function(self.block)
         if self.is_constructor:
             template = E.ScopeAnalysis(V.Name("py"), V.Name("init"))
-            args = (V.Name(str(type)) for _, type in self.inputs)
+            args = (V.Name(str(type)) for _, type in inputs)
             args = (E.CallFunction(E.TemplateInstantiate(template, args), ()), )
         else:
-            args = (self.name, E.Cast(self.address(namespace), V.Name(function_pointer_signature(self.inputs, self.output))), self.doc)
+            args = (self.name, E.Cast(self.address(namespace), V.Name(function_pointer_signature(inputs, self.block.output))), self.doc)
         S.as_statement(E.CallFunction(E.GetAttr(parent, "def"), args))
 
     def address(self, namespace=None):
@@ -113,20 +146,3 @@ class PyBindFunction(BindObject):
     def doc(self):
         return self._doc
 
-
-class PyBindFunctionGroup(PyBindFunction):
-    def __init__(self, name, functions, doc=""):
-        self.name = name
-        self._doc = doc
-        self.functions = functions
-
-    def define(self):
-        m = V.Name("m")
-        with M.ifdefBM("PYBIND"):
-            block = PyBindModuleScope(self.name)
-            with block:
-                if self.doc:
-                    S.assign(V.Name("m.doc()"), self.doc)
-                for func in self.functions:
-                    func.bind(m)
-            get_session().current_block.add_statement(S.BlockStatement(block))

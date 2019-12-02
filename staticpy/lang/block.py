@@ -6,6 +6,7 @@ from . import statement as S
 class Block:
     def __init__(self, statements=None):
         self.statements = statements or []
+        self.parent = None
 
     def translate(self):
         return list(itertools.chain(*(stmt.translate() for stmt in self.statements)))

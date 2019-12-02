@@ -1,6 +1,7 @@
 import abc
 import typing
 
+from ..session import get_session
 from . import expression as E
 from .common import auto_add
 
@@ -95,7 +96,8 @@ class Break(Statement):
 class BlockStatement(Statement):
     def __init__(self, block):
         self.block = block
-
+        block.parent = get_session().current_block
+        
     def translate(self):
         return self.block.translate()
 

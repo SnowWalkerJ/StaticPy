@@ -4,7 +4,7 @@ import os
 import sys
 
 from .template import CppTemplate
-from .bind import PyBindFunction, PyBindFunctionGroup
+from .bind import PyBindFunction, PyBindModule
 from .common.options import get_option
 from .compiler import Compiler
 from .translator import BaseTranslator
@@ -73,48 +73,12 @@ class JitObject:
         targetpath = os.path.abspath(get_target_filepath(path, name))
         return sourcepath, targetpath
 
-    def _wrap_function(self, name, inputs, output, block):
-        doc = block.doc
-        wrapped_inputs = [(T.ReferenceType(t) if isinstance(t, T.ArrayType) else t, n) for (t, n) in inputs]
-        funcs = [B.Function(name, wrapped_inputs, output, block.statements)]
-        # if any, wrap the array types
-        if any(isinstance(type, T.ArrayType) for type, name in inputs):
-            wrapped_inputs = []
-            params = []
-            block = B.EmptyBlock()
-            auto_t = T.OtherType(V.Name("auto"))
-            with block:
-                for t, n in inputs:
-                    if isinstance(t, T.ArrayType):
-                        buffer_t = T.OtherType(E.ScopeAnalysis(V.Name("py"), V.Name("buffer")))
-                        wrapped_inputs.append((buffer_t, n))
-                        v_in = V.variable(n, buffer_t)
-                        v_out = V.variable("_" + n, t)
-                        buffer_info = V.variable(f"buffer_info_{n}", auto_t)
-                        S.declare(buffer_info, E.CallFunction(E.GetAttr(v_in, "request"), ()))
-                        S.declare(v_out, E.CallFunction(t.cname(), (buffer_info, )))
-                        params.append(v_out)
-                    else:
-                        wrapped_inputs.append((t, n))
-                        params.append(V.variable(n, t))
-                S.returns(E.CallFunction(name, tuple(params)))
-            block = B.Function(name, wrapped_inputs, output, block.statements, doc)
-            m = M.IfDefMacro("PYBIND")
-            m.add_statement(S.BlockStatement(block))
-            funcs.append(m)
-            inputs = wrapped_inputs
-        else:
-            inputs = [(t.wrapped(), n) for t, n in inputs]
-        return funcs, inputs
-
     def _bind(self, sess):
         with sess:
             with get_block_or_create("header"):
                 M.defineM("PYBIND")
-        funcs = []
-        for sig in self._signatures:
-            funcs.append(PyBindFunction(**sig))
-        PyBindFunctionGroup(self.name, funcs).setup(sess)
+            block = get_block_or_create("global")
+        PyBindModule(self.name, block).setup(sess)
 
     def _compile(self, sess):
         compiler = Compiler()
@@ -134,18 +98,6 @@ class JitModule(JitObject):
         translator = BaseTranslator(session=sess)
         module_block = translator.translate(self.source)
         sess.blocks['global'] = module_block
-        for stmt in module_block.statements:
-            if isinstance(stmt, S.BlockStatement) and isinstance(stmt.block, B.Function):
-                block = stmt.block
-                funcs, inputs = self._wrap_function(block.name, block.inputs, block.output, block)
-                for func in funcs[1:]:
-                    module_block.add_statement(S.BlockStatement(func))
-                self._signatures.append({
-                    "name": block.name,
-                    "inputs": inputs,
-                    "output": block.output,
-                    "doc": block.doc,
-                })
 
 
 class JitFunction(JitObject):
@@ -164,19 +116,9 @@ class JitFunction(JitObject):
         return self._compiled_obj(*args)
 
     def _translate(self, sess):
-        with sess:
-            global_block = get_block_or_create('global')
         translator = BaseTranslator(self.env, session=sess)
-        block = translator.translate(self.source).statements[0].block
-        funcs, inputs = self._wrap_function(self.name, block.inputs, block.output, block)
-        for func in funcs:
-            global_block.add_statement(S.BlockStatement(func))
-        self._signatures.append({
-            "name": self.name,
-            "inputs": inputs,
-            "output": block.output,
-            "doc": block.doc,
-        })
+        module_block = translator.translate(self.source)
+        sess.blocks['global'] = module_block
 
 
 def jit(obj):
