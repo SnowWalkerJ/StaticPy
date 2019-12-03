@@ -13,6 +13,7 @@ Welcome to StaticPy's documentation!
    introduction
    getstarted
    userguide
+   translator
    contribute
 
 
