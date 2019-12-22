@@ -13,13 +13,14 @@ class Statement(abc.ABC):
 
 
 class VariableDeclaration(Statement):
-    def __init__(self, var, init=None):
+    def __init__(self, var, init=None, qualifiers=None):
         self.variable = var
         self.init = init
+        self.qualifiers = qualifiers if qualifiers is not None else []
 
     def translate(self):
         var = self.variable
-        return [var.type.declare(var.name, self.init)]
+        return [var.type.declare(var.name, self.init, self.qualifiers)]
 
 
 class UsingNamespace(Statement):
@@ -97,7 +98,7 @@ class BlockStatement(Statement):
     def __init__(self, block):
         self.block = block
         block.parent = get_session().current_block
-        
+
     def translate(self):
         return self.block.translate()
 

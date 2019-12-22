@@ -186,12 +186,18 @@ class Var(Expression):
 class GetAttr(Expression):
     level = 19
 
-    def __init__(self, obj, attr):
+    def __init__(self, obj, attr, symbol=None):
         self.obj = obj
         self.attr = attr
+        if symbol is None:
+            if hasattr(obj, "type") and isinstance(getattr(obj, "type"), T.PointerType):
+                symbol = "->"
+            else:
+                symbol = "."
+        self.symbol = symbol
 
     def __str__(self):
-        return ".".join(map(str, [self.obj, self.attr]))
+        return self.symbol.join(map(str, [self.obj, self.attr]))
 
 
 class GetItem(Expression):
@@ -209,7 +215,6 @@ class StaticCast(Expression):
     level = 19
 
     def __init__(self, expr: Expression, astype):
-        # assert isinstance(astype, T.PrimitiveType), "can only cast to basic type"
         self.expr = cast_value_to_expression(expr)
         self.astype = astype
 

@@ -106,16 +106,56 @@ class While(Scope):
 
 
 class Function(Scope):
-    def __init__(self, name, inputs, output, statements, doc="", is_method=False, is_constructor=False):
+    def __init__(self, name, inputs, output, statements, static=False, doc=""):
         self.name = name
         self.inputs = inputs
         self.output = output
         self.doc = doc
-        self.is_method = is_method
-        self.is_constructor = is_constructor
+        self.static = static
         super().__init__(statements)
 
     def prefix(self):
-        ret_type = "" if self.is_constructor else str(self.output)
+        qualifier = "static " if self.static else ""
+        ret_type = str(self.output)
         args = ", ".join(f"{type.cname()} {type.prefix()}{name}" for type, name in self.inputs)
-        return f"{ret_type}{self.name}({args}) {{"
+        return f"{qualifier}{ret_type}{self.name}({args}) {{"
+
+
+class Class(Scope):
+    def __init__(self, name, members={}):
+        self.name = name
+        self.members = members
+        super().__init__()
+
+    def prefix(self):
+        return f"class {self.name} {{"
+
+    def suffix(self):
+        return "};"
+
+
+class AccessBlock(Block):
+    def __init__(self, name):
+        self.name = name
+        super().__init__()
+
+    def translate(self):
+        from . import statement as S
+        translated = super().translate()
+        translated.insert(0, f"{self.name}:")
+        return translated
+
+
+class Constructor(Function):
+    def __init__(self, name, inputs, output, statements, initialization_list=[], doc=""):
+        super().__init__(name, inputs, output, statements, static=False, doc="")
+        self.initialization_list = initialization_list
+
+    def prefix(self):
+        args = ", ".join(f"{type.cname()} {type.prefix()}{name}" for type, name in self.inputs)
+        name_args = f"{self.name}({args})"
+        if self.initialization_list:
+            initialization = ": " + ", ".join("{name}({expr})" for name, expr in self.initialization_list)
+        else:
+            initialization = ""
+        return f"{name_args} {initialization} {{"

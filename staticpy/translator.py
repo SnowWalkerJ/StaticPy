@@ -15,6 +15,7 @@ from .lang import (
     block as B,
     macro as M,
 )
+from .lang.common.cls import Object
 
 
 class ContextStack:
@@ -134,17 +135,59 @@ class BaseTranslator:
         return self._run_nodes(node.body)
 
     def ClassDef(self, node):
-        raise NotImplementedError("class")
+        # raise NotImplementedError("class")
+        members = self._resolve_members(node)
+        _cls, _self = self._create_objects(node.name, members)
+        block = B.Class(node.name, members)
+        with block:
+            self.ctx.push()
+            blk = private_block = B.AccessBlock("private")
+            with private_block:
+                for member in members.values():
+                    if member['private'] and member['type'] == "property":
+                        declaration = self._run_node(member['node'])
+                        if member['static']:
+                            declaration.qualifiers.append("static")
+                        blk.add_statement(declaration)
+                for member in members.values():
+                    if member['private'] and member['type'] == "method":
+                        for stmt in self._run_nodes([member['node']], env={"cls": _cls}).statements:
+                            blk.add_statement(stmt)
+            blk = public_block = B.AccessBlock("public")
+            with public_block:
+                for member in members.values():
+                    if not member['private'] and member['type'] == "property":
+                        declaration = self._run_node(member['node'])
+                        if member['static']:
+                            declaration.qualifiers.append("static")
+                        blk.add_statement(declaration)
+                for member in members.values():
+                    if not member['private'] and member['type'] == "method":
+                        for stmt in self._run_nodes([member['node']], env={"cls": _cls}).statements:
+                            blk.add_statement(stmt)
+            self.ctx.pop()
+            block.add_statement(S.BlockStatement(private_block))
+            block.add_statement(S.BlockStatement(public_block))
+        return block
 
     def FunctionDef(self, node):
+        assert isinstance(node, ast.FunctionDef)
+        static = bool({"staticmethod", "classmethod"} & set(node.decorator_list))
         name = node.name
-        args = [self._run_node(arg) for arg in node.args.args]
+        args = [self._run_node(arg) for arg in node.args.args if arg.arg not in ["self", "cls"]]
         inputs = [(v.type, v.name) for v in args]
         returns = self._run_node(node.returns) if node.returns is not None else T.Void
 
         new_env = {v.name: v for v in args}
         doc, body = self._try_get_doc(node)
-        block = self._run_nodes(body, new_env, B.Function(name, inputs, returns, None, doc))
+        if name == "__init__":
+            assert not static
+            # initialization_list = self._resolve_initialization_list(node)
+            initialization_list = []
+            block = B.Constructor(name, inputs, returns, None, initialization_list=initialization_list, static=False, doc=doc)
+        else:
+            block = B.Function(name, inputs, returns, None, static=static, doc=doc)
+        block = self._run_nodes(body, new_env, block)
         return block
 
     def If(self, node):
@@ -247,7 +290,10 @@ class BaseTranslator:
         return op_map[op](target, value)
 
     def AnnAssign(self, node):
-        varname = node.target.id
+        if isinstance(node.target, ast.Attribute):
+            varname = node.target.attr
+        else:
+            varname = node.target.id
         value = self._run_node(node.value) if node.value is not None else None
         type = self._run_node(node.annotation)
         if isinstance(type, E.Const) and type.value.lower() == "const":
@@ -373,3 +419,57 @@ class BaseTranslator:
     # ============= others =============
     def arg(self, node):
         return V.variable(node.arg, self._run_node(node.annotation))
+
+    # functions
+
+    def _create_objects(self, name, members):
+        _cls = Object(name, {key: value for key, value in members.items() if value['static']})
+        _self = Object(name, members)
+        return _cls, _self
+
+    def _resolve_members(self, node):
+        # TODO: operator override
+        # TODO: desctructor
+        # TODO: overload
+        members = {}
+        for child in node.body:
+            if isinstance(child, ast.FunctionDef):
+                if child.name == "__init__":
+                    members.update(self._resolve_self_properties(child))
+                else:
+                    members[child.name] = {
+                        "name": child.name,
+                        "type": "method",
+                        "static": "classmethod" in child.decorator_list or "staticmethod" in child.decorator_list,
+                        "private": child.name.startswith("__") and not child.name.endswith("__"),
+                        "node": child,
+                    }
+            elif isinstance(child, ast.AnnAssign):
+                members[child.target.id] = {
+                    "name": child.target.id,
+                    "type": "property",
+                    "static": True,
+                    "private": child.target.id.startswith("__"),
+                    "node": child,
+                    "annotation": child.annotation,
+                    "value": self._run_node(child.value)
+                }
+            else:
+                raise TypeError(f"Wrong type of member of class: {child}")
+        return members
+
+    def _resolve_self_properties(self, node):
+        members = {}
+        for child in node.body:
+            if isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Attribute) and child.target.value.id == "self":
+                name = child.target.attr
+                members[name] = {
+                    "name": name,
+                    "type": "property",
+                    "private": name.startswith("__"),
+                    "static": False,
+                    "value": self._run_node(child.value),
+                    "node": ast.AnnAssign(target=ast.Name(id=name), value=child.value, annotation=child.annotation),
+                }
+        print(members)
+        return members
