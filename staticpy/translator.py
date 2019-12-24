@@ -135,59 +135,87 @@ class BaseTranslator:
         return self._run_nodes(node.body)
 
     def ClassDef(self, node):
-        # raise NotImplementedError("class")
         members = self._resolve_members(node)
         _cls, _self = self._create_objects(node.name, members)
+        public_methods = [member for member in members.values() if not member['private'] and member['type'] == "method"]
+        private_methods = [member for member in members.values() if member['private'] and member['type'] == "method"]
+        public_properties = [member for member in members.values() if not member['private'] and member['type'] == "property"]
+        private_properties = [member for member in members.values() if member['private'] and member['type'] == "property"]
+        constructors = [member for member in members.values() if member['type'] == "constructor"]
+        static_initialization = []
         block = B.Class(node.name, members)
-        with block:
-            self.ctx.push()
-            blk = private_block = B.AccessBlock("private")
-            with private_block:
-                for member in members.values():
-                    if member['private'] and member['type'] == "property":
-                        declaration = self._run_node(member['node'])
-                        if member['static']:
-                            declaration.qualifiers.append("static")
-                        blk.add_statement(declaration)
-                for member in members.values():
-                    if member['private'] and member['type'] == "method":
-                        for stmt in self._run_nodes([member['node']], env={"cls": _cls}).statements:
-                            blk.add_statement(stmt)
-            blk = public_block = B.AccessBlock("public")
-            with public_block:
-                for member in members.values():
-                    if not member['private'] and member['type'] == "property":
-                        declaration = self._run_node(member['node'])
-                        if member['static']:
-                            declaration.qualifiers.append("static")
-                        blk.add_statement(declaration)
-                for member in members.values():
-                    if not member['private'] and member['type'] == "method":
-                        for stmt in self._run_nodes([member['node']], env={"cls": _cls}).statements:
-                            blk.add_statement(stmt)
-            self.ctx.pop()
-            block.add_statement(S.BlockStatement(private_block))
-            block.add_statement(S.BlockStatement(public_block))
-        return block
+        private_block = B.AccessBlock("private")
+        public_block = B.AccessBlock("public")
+        self.ctx.push({"cls": _cls, "self": _self})
+        for constructor in constructors:
+            public_block.add_statement(S.BlockStatement(self.Constructor(node.name, constructor['node'])))
+        for acc_blk, (methods, properties) in [(private_block, (private_methods, private_properties)),
+                                               (public_block, (public_methods, public_properties))]:
+            for prpt in properties:
+                declaration = self._run_node(prpt['node'])
+                if prpt['static']:
+                    declaration.qualifiers.append("static")
+                    if declaration.init is not None:
+                        static_initialization.append(S.VariableDeclaration(V.Variable(E.ScopeAnalysis(node.name, declaration.variable.name), declaration.variable.type), declaration.init))
+                declaration.init = None
+                acc_blk.add_statement(declaration)
+            for mthd in methods:
+                mthd['node'].is_method = True
+                blk = self._run_node(mthd['node'])
+                acc_blk.add_statement(S.BlockStatement(blk))
+            block.add_statement(S.BlockStatement(acc_blk))
+        self.ctx.pop()
+        if static_initialization:
+            return [S.BlockStatement(block)] + static_initialization
+        else:
+            return block
 
     def FunctionDef(self, node):
         assert isinstance(node, ast.FunctionDef)
-        static = bool({"staticmethod", "classmethod"} & set(node.decorator_list))
+        decorators = set(x.id for x in node.decorator_list)
+        static = bool({"staticmethod", "classmethod"} & decorators)
         name = node.name
-        args = [self._run_node(arg) for arg in node.args.args if arg.arg not in ["self", "cls"]]
+        if getattr(node, "is_method", False) and "staticmethod" not in decorators:
+            args = [self._run_node(arg) for arg in node.args.args[1:]]
+        else:
+            args = [self._run_node(arg) for arg in node.args.args]
         inputs = [(v.type, v.name) for v in args]
         returns = self._run_node(node.returns) if node.returns is not None else T.Void
 
         new_env = {v.name: v for v in args}
         doc, body = self._try_get_doc(node)
-        if name == "__init__":
-            assert not static
-            # initialization_list = self._resolve_initialization_list(node)
-            initialization_list = []
-            block = B.Constructor(name, inputs, returns, None, initialization_list=initialization_list, static=False, doc=doc)
-        else:
-            block = B.Function(name, inputs, returns, None, static=static, doc=doc)
+        block = B.Function(name, inputs, returns, None, static=static, doc=doc)
         block = self._run_nodes(body, new_env, block)
+        return block
+
+    def Constructor(self, name, node):
+        """
+        psedo AST for class constructors
+        """
+        assert isinstance(node, ast.FunctionDef)
+        args = [self._run_node(arg) for arg in node.args.args[1:]]
+        inputs = [(v.type, v.name) for v in args]
+
+        new_env = {v.name: v for v in args}
+        doc, body = self._try_get_doc(node)
+        block = B.Constructor(name, inputs, None, doc=doc)
+        initialization_list = []
+        with block:
+            self.ctx.push(new_env)
+            for child in body:
+                try:
+                    initialization_list.append(self._try_parse_initialization(child))
+                except StopIteration:
+                    res = self._run_node(node)
+                    if isinstance(res, B.Block):
+                        block.add_statement(S.BlockStatement(res))
+                    elif isinstance(res, S.Statement):
+                        block.add_statement(res)
+                    elif isinstance(res, list):
+                        for s in res:
+                            block.add_statement(s)
+            self.ctx.pop()
+        block.initialization_list = initialization_list
         return block
 
     def If(self, node):
@@ -436,6 +464,13 @@ class BaseTranslator:
             if isinstance(child, ast.FunctionDef):
                 if child.name == "__init__":
                     members.update(self._resolve_self_properties(child))
+                    members[child.name] = {
+                        "name": child.name,
+                        "type": "constructor",
+                        "static": False,
+                        "private": False,
+                        "node": child,
+                    }
                 else:
                     members[child.name] = {
                         "name": child.name,
@@ -452,7 +487,7 @@ class BaseTranslator:
                     "private": child.target.id.startswith("__"),
                     "node": child,
                     "annotation": child.annotation,
-                    "value": self._run_node(child.value)
+                    "value": self._run_node(child.value) if child.value is not None else None
                 }
             else:
                 raise TypeError(f"Wrong type of member of class: {child}")
@@ -471,5 +506,14 @@ class BaseTranslator:
                     "value": self._run_node(child.value),
                     "node": ast.AnnAssign(target=ast.Name(id=name), value=child.value, annotation=child.annotation),
                 }
-        print(members)
         return members
+
+    def _try_parse_initialization(self, node):
+        if not isinstance(node, ast.AnnAssign):
+            raise StopIteration
+        if node.value is None or not isinstance(node.value, (ast.Num, ast.Str)):
+            raise StopIteration
+        if not (isinstance(node.target, ast.Attribute) and node.target.value.id == "self"):
+            raise StopIteration
+        target = node.target.attr
+        return target, self._run_node(node.value)

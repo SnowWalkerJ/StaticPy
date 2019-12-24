@@ -70,3 +70,5 @@ Void = PrimitiveType("Void", None, "void", 0)
 String = PrimitiveType("String", None, "std::string", 0, compatible_type=str)
 
 BuiltInType = PrimitiveType("BuiltIn", None, "", 0)
+
+AutoType = PrimitiveType("auto", None, "auto", 0)

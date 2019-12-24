@@ -87,12 +87,10 @@ def compare_expression(name, op, level=None):
     return BinaryExpression
 
 
-AddressOf = unary_expression('AddressOf', '&', 16)
 UnaryPositive = unary_expression('UnaryPositive', '+', 16)
 UnaryNegative = unary_expression('UnaryNegative', '-', 16)
 UnaryNot = unary_expression('UnaryNot', '!', 16)
 UnaryInvert = unary_expression('UnaryInvert', '~', 16)
-ScopeAnalysis = binary_expression("ScopeAnalysis", "::", 18)
 BinaryMultiply = binary_expression('BinaryMultiply', '*', 14)
 BinaryDivide = binary_expression('BinaryDivide', '/', 14)
 BinaryModulo = binary_expression('BinaryModulo', '%', 14)
@@ -111,6 +109,37 @@ CompareGE = compare_expression('GreaterEqual', '>=', 11)
 CompareLE = compare_expression('LessEqual', '<=', 11)
 CompareEQ = compare_expression('Equal', '==', 11)
 CompareNE = compare_expression('NotEqual', '!=', 11)
+
+
+class AddressOf(OpExpression):
+    op = "&"
+    name = "AddressOf"
+    level = 16
+
+    def __init__(self, item):
+        self.item = cast_value_to_expression(item)
+
+    def __repr__(self):
+        return f"{self.name}({self.item})"
+
+    def __str__(self):
+        return f"{self.op}{self.item}"
+
+
+class ScopeAnalysis(OpExpression):
+    op = "::"
+    name = "ScopeAnalysis"
+    level = 18
+
+    def __init__(self, item1, item2):
+        self.item1 = item1
+        self.item2 = item2
+
+    def __repr__(self):
+        return f"{self.name}({self.item1}, {self.item2})"
+
+    def __str__(self):
+        return f"{self.item1}{self.op}{self.item2}"
 
 
 class IIf(OpExpression):

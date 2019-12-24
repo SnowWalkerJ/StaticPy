@@ -121,8 +121,31 @@ class JitFunction(JitObject):
         sess.blocks['global'] = module_block
 
 
+class JitClass(JitObject):
+    def __init__(self, cls, env={}):
+        super().__init__(cls.__name__, cls)
+        self.env = env.copy()
+        self.env[cls.__name__] = V.Name(cls.__name__)
+
+    def __call__(self, *args):
+        if not self._compiled:
+            if get_option("force_compile", False) or self._need_update():
+                self.compile()
+            self.load()
+            self._compiled = True
+            self.__doc__ = self._compiled_obj.__doc__
+        return self._compiled_obj(*args)
+
+    def _translate(self, sess):
+        translator = BaseTranslator(self.env, session=sess)
+        module_block = translator.translate(self.source)
+        sess.blocks['global'] = module_block
+
+
 def jit(obj):
+    frame = inspect.currentframe().f_back
+    env = frame.f_globals
     if inspect.isfunction(obj):
-        frame = inspect.currentframe().f_back
-        env = frame.f_globals
         return JitFunction(obj, env)
+    elif inspect.isclass(obj):
+        return JitClass(obj, env)

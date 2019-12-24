@@ -125,6 +125,7 @@ class Class(Scope):
     def __init__(self, name, members={}):
         self.name = name
         self.members = members
+        self.doc = ""
         super().__init__()
 
     def prefix(self):
@@ -147,15 +148,15 @@ class AccessBlock(Block):
 
 
 class Constructor(Function):
-    def __init__(self, name, inputs, output, statements, initialization_list=[], doc=""):
-        super().__init__(name, inputs, output, statements, static=False, doc="")
+    def __init__(self, name, inputs, statements, initialization_list=[], doc=""):
+        super().__init__(name, inputs, None, statements, static=False, doc="")
         self.initialization_list = initialization_list
 
     def prefix(self):
         args = ", ".join(f"{type.cname()} {type.prefix()}{name}" for type, name in self.inputs)
         name_args = f"{self.name}({args})"
         if self.initialization_list:
-            initialization = ": " + ", ".join("{name}({expr})" for name, expr in self.initialization_list)
+            initialization = ": " + ", ".join(f"{name}({expr})" for name, expr in self.initialization_list)
         else:
             initialization = ""
         return f"{name_args} {initialization} {{"
