@@ -5,6 +5,7 @@ class TypeBase(ABC):
     def __init__(self, name):
         self.name = name
         self.base = None
+        self.is_primitive = False
 
     def is_abstract(self):
         return True

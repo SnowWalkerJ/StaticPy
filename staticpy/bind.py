@@ -110,11 +110,9 @@ class PyBindModule(BindObject):
 
 
 class PyBindFunction(BindObject):
-    def __init__(self, name, func_block, is_method=False, is_constructor=False):
+    def __init__(self, name, func_block):
         self.block = func_block
         self.name = name
-        self.is_method = is_method
-        self.is_constructor = is_constructor
         self._doc = func_block.doc
 
     def define(self):
@@ -129,13 +127,8 @@ class PyBindFunction(BindObject):
 
     def bind(self, parent, namespace=None):
         inputs = self._wrap_function(self.block)
-        if self.is_constructor:
-            template = E.ScopeAnalysis(V.Name("py"), V.Name("init"))
-            args = (V.Name(str(type)) for _, type in inputs)
-            args = (E.CallFunction(E.TemplateInstantiate(template, args), ()), )
-        else:
-            signature = function_pointer_signature(inputs, self.block.output, namespace if not self.block.static else None)
-            args = (self.name, E.Cast(self.address(namespace), V.Name(signature)), self.doc)
+        signature = function_pointer_signature(inputs, self.block.output, namespace)
+        args = (self.name, E.Cast(self.address(namespace), V.Name(signature)), self.doc)
         S.as_statement(E.CallFunction(E.GetAttr(parent, "def"), args))
 
     def address(self, namespace=None):
@@ -148,6 +141,39 @@ class PyBindFunction(BindObject):
     @property
     def doc(self):
         return self._doc
+
+
+class PyBindMethod(PyBindFunction):
+    def bind(self, parent, namespace=None):
+        inputs = self._wrap_function(self.block)
+        signature = function_pointer_signature(inputs, self.block.output, namespace if not self.block.static else None)
+        args = (self.name, E.Cast(self.address(namespace), V.Name(signature)), self.doc)
+        S.as_statement(E.CallFunction(E.GetAttr(parent, "def"), args))
+
+
+class PyBindConstructor(PyBindMethod):
+    def bind(self, parent, namespace=None):
+        inputs = self._wrap_function(self.block)
+        template = E.ScopeAnalysis(V.Name("py"), V.Name("init"))
+        args = (V.Name(str(type)) for _, type in inputs)
+        args = (E.CallFunction(E.TemplateInstantiate(template, args), ()), )
+        S.as_statement(E.CallFunction(E.GetAttr(parent, "def"), args))
+
+
+class PyBindOperator(PyBindMethod):
+    operators_mapping = {
+        "+": "__add__",
+        "-": "__sub__",
+        "*": "__mull__",
+        "/": "__truediv__",
+    }
+
+    def bind(self, parent, namespace=None):
+        name = self.operators_mapping[self.name.lstrip("operator").strip(" ")]
+        inputs = self._wrap_function(self.block)
+        signature = function_pointer_signature(inputs, self.block.output, namespace if not self.block.static else None)
+        args = (name, E.Cast(self.address(namespace), V.Name(signature)), E.CallFunction(E.ScopeAnalysis("py", "is_operator"), ()))
+        S.as_statement(E.CallFunction(E.GetAttr(parent, "def"), args))
 
 
 class PyBindClass(BindObject):
@@ -175,7 +201,13 @@ class PyBindClass(BindObject):
             if isinstance(member, S.VariableDeclaration) and "static" not in member.qualifiers:
                 S.as_statement(E.CallFunction(E.GetAttr(c, "def_readwrite"), (member.variable.name, E.AddressOf(E.ScopeAnalysis(child_namespace, member.variable.name)))))
             elif isinstance(member, S.BlockStatement) and isinstance(member.block, B.Function):
-                PyBindFunction(member.block.name, member.block, is_method=True, is_constructor=member.block.name==self.name).bind(c, namespace=child_namespace)
+                if member.block.name == self.name:
+                    binder = PyBindConstructor
+                elif member.block.name.startswith("operator"):
+                    binder =PyBindOperator
+                else:
+                    binder = PyBindMethod
+                binder(member.block.name, member.block).bind(c, namespace=child_namespace)
 
     def address(self, namespace=None):
         if namespace:

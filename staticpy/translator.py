@@ -15,7 +15,6 @@ from .lang import (
     block as B,
     macro as M,
 )
-from .lang.common.cls import Object
 
 
 class ContextStack:
@@ -146,7 +145,7 @@ class BaseTranslator:
         block = B.Class(node.name, members)
         private_block = B.AccessBlock("private")
         public_block = B.AccessBlock("public")
-        self.ctx.push({"cls": _cls, "self": _self})
+        self.ctx.push({"cls": _cls, "self": _self, "Cls": _cls, node.name: _cls})
         for constructor in constructors:
             public_block.add_statement(S.BlockStatement(self.Constructor(node.name, constructor['node'])))
         for acc_blk, (methods, properties) in [(private_block, (private_methods, private_properties)),
@@ -451,14 +450,21 @@ class BaseTranslator:
     # functions
 
     def _create_objects(self, name, members):
-        _cls = Object(name, {key: value for key, value in members.items() if value['static']})
-        _self = Object(name, members)
+        from .lang.common.cls import Self, Cls
+        _cls = Cls(name, "*this", {key: value for key, value in members.items() if value['static']})
+        _self = Self(name, name, members)
         return _cls, _self
 
     def _resolve_members(self, node):
         # TODO: operator override
         # TODO: desctructor
         # TODO: overload
+        operators_mapping = {
+            "__add__": "operator +",
+            "__sub__": "operator -",
+            "__mul__": "operator *",
+            "__truediv__": "operator /",
+        }
         members = {}
         for child in node.body:
             if isinstance(child, ast.FunctionDef):
@@ -477,7 +483,15 @@ class BaseTranslator:
                         "type": "method",
                         "static": "classmethod" in child.decorator_list or "staticmethod" in child.decorator_list,
                         "private": child.name.startswith("__") and not child.name.endswith("__"),
-                        "node": child,
+                        "node": ast.FunctionDef(
+                            name=operators_mapping.get(child.name, child.name),
+                            body=child.body,
+                            args=child.args,
+                            decorator_list=child.decorator_list,
+                            returns=child.returns,
+                            lineno=child.lineno,
+                            col_offset=child.col_offset,
+                        ),
                     }
             elif isinstance(child, ast.AnnAssign):
                 members[child.target.id] = {

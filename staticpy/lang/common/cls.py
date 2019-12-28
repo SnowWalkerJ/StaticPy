@@ -2,7 +2,7 @@ from .. import variable as V, expression as E, type as T
 
 
 class Object:
-    def __init__(self, name, members):
+    def __init__(self, name, myname, members):
         self.name = name
         for name, member in members.items():
             setattr(self, name, self._get_member(member))
@@ -21,3 +21,14 @@ class Object:
 
     def static_attribute(self, attr):
         return E.ScopeAnalysis(V.Name(self.name), V.Name(attr))
+
+
+class Self(Object):
+    def __str__(self):
+        return "*this"
+
+
+class Cls(Object, T.OtherType):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.real_type = V.Name(self.name)

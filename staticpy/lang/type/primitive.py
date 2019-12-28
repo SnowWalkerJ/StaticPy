@@ -8,6 +8,7 @@ class PrimitiveType(TypeBase):
         self.base = base
         self.ctype = ctype
         self.size = size
+        self.is_primitive = True
         self.compatible_type = compatible_type or (base.compatible_type if base is not None else None)
 
     def is_abstract(self):
