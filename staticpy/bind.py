@@ -12,7 +12,7 @@ from .lang import (
     type as T,
     variable as V,
 )
-from .util.string import function_pointer_signature
+from .common.string import function_pointer_signature
 from .lang.common import get_block_or_create
 from .session import get_session
 
@@ -166,6 +166,10 @@ class PyBindOperator(PyBindMethod):
         "-": "__sub__",
         "*": "__mull__",
         "/": "__truediv__",
+        "<<": "__lshift__",
+        ">>": "__rshift__",
+        "[]": "__getitem__",
+        "()": "__call__",
     }
 
     def bind(self, parent, namespace=None):
@@ -204,7 +208,7 @@ class PyBindClass(BindObject):
                 if member.block.name == self.name:
                     binder = PyBindConstructor
                 elif member.block.name.startswith("operator"):
-                    binder =PyBindOperator
+                    binder = PyBindOperator
                 else:
                     binder = PyBindMethod
                 binder(member.block.name, member.block).bind(c, namespace=child_namespace)

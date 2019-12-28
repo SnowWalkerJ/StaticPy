@@ -2,7 +2,7 @@ import abc
 
 from .value import Value
 from . import type as T
-from ..util.string import stringify_arguments
+from .common.string import stringify_arguments
 
 
 class Expression(Value):

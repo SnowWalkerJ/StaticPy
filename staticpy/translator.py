@@ -6,6 +6,7 @@ import os
 import sys
 
 from .common.logging import error
+from .phase import set_building
 from .session import get_session, new_session
 from .lang import (
     type as T,
@@ -82,8 +83,9 @@ class BaseTranslator:
         self.err_handled = False
 
         node = ast.parse(self.source)
-        with self.sess:
-            return self._run_node(node)
+        with set_building():
+            with self.sess:
+                return self._run_node(node)
 
     def _run_node(self, node):
         typename = type(node).__name__
@@ -450,13 +452,12 @@ class BaseTranslator:
     # functions
 
     def _create_objects(self, name, members):
-        from .lang.common.cls import Self, Cls
+        from .common.cls import Self, Cls
         _cls = Cls(name, "*this", {key: value for key, value in members.items() if value['static']})
         _self = Self(name, name, members)
         return _cls, _self
 
     def _resolve_members(self, node):
-        # TODO: operator override
         # TODO: desctructor
         # TODO: overload
         operators_mapping = {
@@ -464,6 +465,10 @@ class BaseTranslator:
             "__sub__": "operator -",
             "__mul__": "operator *",
             "__truediv__": "operator /",
+            "__lshift__": "operator <<",
+            "__rshift__": "operator >>",
+            "__getitem__": "operator []",
+            "__call__": "operator ()",
         }
         members = {}
         for child in node.body:

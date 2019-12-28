@@ -1,6 +1,7 @@
 from importlib.abc import MetaPathFinder, Loader
 from importlib.machinery import ModuleSpec
 from importlib.util import spec_from_file_location, module_from_spec
+import inspect
 import os
 import sys
 
@@ -26,7 +27,7 @@ class StaticPyFinder(MetaPathFinder):
 class StaticPyLoader(Loader):
     def create_module(self, spec):
         name = spec.name.split(".")[-1]
-        jit = JitModule(name, spec.origin)
+        jit = JitModule(name, spec.origin, dict(inspect.getmembers(__builtins__)))
         if get_option("force_compile", False) or jit._need_update():
             jit.compile()
         self.wrapped_spec = spec_from_file_location(name, jit._target_path)

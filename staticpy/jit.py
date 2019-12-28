@@ -9,7 +9,7 @@ from .common.options import get_option
 from .compiler import Compiler
 from .translator import BaseTranslator
 from .session import new_session
-from .util.string import get_target_filepath
+from .common.string import get_target_filepath
 from .lang.common import get_block_or_create
 from .lang import (
     statement as S,
@@ -22,9 +22,10 @@ from .lang import (
 
 
 class JitObject:
-    def __init__(self, name, obj):
+    def __init__(self, name, obj, env={}):
         self.name = name
         self.obj = obj
+        self.env = env.copy()
         self.source = self._get_source(obj)
         self._signatures = []
         self._compiled = False
@@ -102,8 +103,7 @@ class JitModule(JitObject):
 
 class JitFunction(JitObject):
     def __init__(self, func, env={}):
-        super().__init__(func.__name__, func)
-        self.env = env.copy()
+        super().__init__(func.__name__, func, env)
         self.env[func.__name__] = V.Name(func.__name__)
 
     def __call__(self, *args):
@@ -123,8 +123,7 @@ class JitFunction(JitObject):
 
 class JitClass(JitObject):
     def __init__(self, cls, env={}):
-        super().__init__(cls.__name__, cls)
-        self.env = env.copy()
+        super().__init__(cls.__name__, cls, env)
         self.env[cls.__name__] = V.Name(cls.__name__)
 
     def __call__(self, *args):
@@ -144,7 +143,8 @@ class JitClass(JitObject):
 
 def jit(obj):
     frame = inspect.currentframe().f_back
-    env = frame.f_globals
+    env = dict(inspect.getmembers(__builtins__))
+    env.update(frame.f_globals)
     if inspect.isfunction(obj):
         return JitFunction(obj, env)
     elif inspect.isclass(obj):
