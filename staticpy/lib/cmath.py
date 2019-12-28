@@ -1,132 +1,57 @@
+import math
 from ..lang import expression as E
 from ..lang.common import require_header
+from ..common.phase import LibFunction
 
 
-@require_header(["<cmath>"])
-def cos(value):
-    return E.CallFunction('cos', (value, ))
+def math_function(name):
+    return LibFunction("<cmath>", getattr(math, name), name, "std")
 
 
-@require_header(["<cmath>"])
-def sin(value):
-    return E.CallFunction('sin', (value, ))
+cos = math_function("cos")
 
+sin = math_function("sin")
 
-@require_header(["<cmath>"])
-def tan(value):
-    return E.CallFunction('tan', (value, ))
+tan = math_function("tan")
 
+acos = math_function("acos")
 
-@require_header(["<cmath>"])
-def acos(value):
-    return E.CallFunction('acos', (value, ))
+asin = math_function("asin")
 
+atan = math_function("atan")
 
-@require_header(["<cmath>"])
-def asin(value):
-    return E.CallFunction('asin', (value, ))
+cosh = math_function("cosh")
 
+sinh = math_function("sinh")
 
-@require_header(["<cmath>"])
-def atan(value):
-    return E.CallFunction('atan', (value, ))
+tanh = math_function("tanh")
 
+acosh = math_function("acosh")
 
-@require_header(["<cmath>"])
-def atan2(value1, value2):
-    return E.CallFunction('atan2', (value1, value2))
+asinh = math_function("asinh")
 
+atanh = math_function("atanh")
 
-@require_header(["<cmath>"])
-def cosh(value):
-    return E.CallFunction('cosh', (value, ))
+exp = math_function("exp")
 
+expm1 = math_function("expm1")
 
-@require_header(["<cmath>"])
-def sinh(value):
-    return E.CallFunction('sinh', (value, ))
+log = math_function("log")
 
+log10 = math_function("log10")
 
-@require_header(["<cmath>"])
-def tanh(value):
-    return E.CallFunction('tanh', (value, ))
+log2 = math_function("log2")
 
+log1p = math_function("log1p")
 
-@require_header(["<cmath>"])
-def acosh(value):
-    return E.CallFunction('acosh', (value, ))
+pow = math_function("pow")
 
+sqrt = math_function("sqrt")
 
-@require_header(["<cmath>"])
-def asinh(value):
-    return E.CallFunction('asinh', (value, ))
+ceil = math_function("ceil")
 
+floor = math_function("floor")
 
-@require_header(["<cmath>"])
-def atanh(value):
-    return E.CallFunction('atanh', (value, ))
+fmax = LibFunction("<cmath>", max, "fmax", "std")
 
-
-@require_header(["<cmath>"])
-def exp(value):
-    return E.CallFunction('exp', (value, ))
-
-
-@require_header(["<cmath>"])
-def exp2(value):
-    return E.CallFunction('exp2', (value, ))
-
-
-@require_header(["<cmath>"])
-def expm1(value):
-    return E.CallFunction('expm1', (value, ))
-
-
-@require_header(["<cmath>"])
-def log(value):
-    return E.CallFunction('log', (value, ))
-
-
-@require_header(["<cmath>"])
-def log10(value):
-    return E.CallFunction('log10', (value, ))
-
-
-@require_header(["<cmath>"])
-def log2(value):
-    return E.CallFunction('log2', (value, ))
-
-
-@require_header(["<cmath>"])
-def log1p(value):
-    return E.CallFunction('log1p', (value, ))
-
-
-@require_header(["<cmath>"])
-def pow(base, exponent):
-    return E.CallFunction('pow', (base, exponent))
-
-
-@require_header(["<cmath>"])
-def sqrt(value):
-    return E.CallFunction('sqrt', (value, ))
-
-
-@require_header(["<cmath>"])
-def ceil(value):
-    return E.CallFunction('ceil', (value, ))
-
-
-@require_header(["<cmath>"])
-def floor(value):
-    return E.CallFunction('floor', (value, ))
-
-
-@require_header(["<cmath>"])
-def fmax(a, b):
-    return E.CallFunction('fmax', (a, b))
-
-
-@require_header(["<cmath>"])
-def fmin(a, b):
-    return E.CallFunction('fmin', (a, b))
+fmin = LibFunction("<cmath>", min, "fmin", "std")

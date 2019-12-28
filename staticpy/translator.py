@@ -6,7 +6,7 @@ import os
 import sys
 
 from .common.logging import error
-from .phase import set_building
+from .common.phase import set_building
 from .session import get_session, new_session
 from .lang import (
     type as T,
@@ -335,7 +335,7 @@ class BaseTranslator:
         return ret
 
     def Expr(self, node):
-        expr = self._run_node(node)
+        expr = self._run_node(node.value)
         return S.ExpressionStatement(expr)
 
     def Break(self, node):
@@ -430,7 +430,11 @@ class BaseTranslator:
     def Call(self, node):
         func = self._run_node(node.func)
         args = tuple(self._run_node(x) for x in node.args)
-        return E.CallFunction(func, args)
+        kwargs = {kw.arg: self._run_node(kw.value) for kw in node.keywords}
+        if isinstance(func, V.Value):
+            return E.CallFunction(func, args)
+        else:
+            return func(*args, **kwargs)
 
     def Tuple(self, node):
         return tuple(map(self._run_node, node.elts))

@@ -1,9 +1,9 @@
-from ..lang import variable as V, statement as S
+from ..lang import expression as E, statement as S
 from ..session import get_session
 from ..lang.common import require_header
+from ..common.phase import LibFunction
 
 
-@require_header(['<iostream>'])
 def cprint(*args, **kwargs):
     expr = cout
     init = True
@@ -22,7 +22,10 @@ def cprint(*args, **kwargs):
     return expr
 
 
-cin = V.Name('std::cin')
-cout = V.Name('std::cout')
-cerr = V.Name('std::cerr')
-endl = V.Name('std::endl')
+cprint = LibFunction("<iostream>", print, cprint)
+
+
+cin = E.ScopeAnalysis("std", "cin")
+cout = E.ScopeAnalysis("std", "cout")
+cerr = E.ScopeAnalysis("std", "cerr")
+endl = E.ScopeAnalysis("std", "endl")
