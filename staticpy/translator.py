@@ -74,6 +74,7 @@ class BaseTranslator:
         self.sess = session
         self.source = None
         self.err_handled = False
+        self.builder = ClassBuilder(self)
 
     def translate(self, source):
         lines = source.split("\n")
@@ -136,8 +137,8 @@ class BaseTranslator:
         return self._run_nodes(node.body)
 
     def ClassDef(self, node):
-        members = self._resolve_members(node)
-        _cls, _self = self._create_objects(node.name, members)
+        members = self.builder._resolve_members(node)
+        _cls, _self = self.builder._create_objects(node.name, members)
         public_methods = [member for member in members.values() if not member['private'] and member['type'] == "method"]
         private_methods = [member for member in members.values() if member['private'] and member['type'] == "method"]
         public_properties = [member for member in members.values() if not member['private'] and member['type'] == "property"]
@@ -205,7 +206,7 @@ class BaseTranslator:
             self.ctx.push(new_env)
             for child in body:
                 try:
-                    initialization_list.append(self._try_parse_initialization(child))
+                    initialization_list.append(self.builder._try_parse_initialization(child))
                 except StopIteration:
                     res = self._run_node(node)
                     if isinstance(res, B.Block):
@@ -453,12 +454,16 @@ class BaseTranslator:
     def arg(self, node):
         return V.variable(node.arg, self._run_node(node.annotation))
 
-    # functions
 
-    def _create_objects(self, name, members):
+class ClassBuilder:
+    def __init__(self, translator):
+        self.translator = translator
+
+    @staticmethod
+    def _create_objects(name, members):
         from .common.cls import Self, Cls
-        _cls = Cls(name, "*this", {key: value for key, value in members.items() if value['static']})
-        _self = Self(name, name, members)
+        _cls = Cls(name, {key: value for key, value in members.items() if value['static']})
+        _self = Self(name, members)
         return _cls, _self
 
     def _resolve_members(self, node):
@@ -510,7 +515,7 @@ class BaseTranslator:
                     "private": child.target.id.startswith("__"),
                     "node": child,
                     "annotation": child.annotation,
-                    "value": self._run_node(child.value) if child.value is not None else None
+                    "value": self.translator._run_node(child.value) if child.value is not None else None
                 }
             else:
                 raise TypeError(f"Wrong type of member of class: {child}")
@@ -526,7 +531,7 @@ class BaseTranslator:
                     "type": "property",
                     "private": name.startswith("__"),
                     "static": False,
-                    "value": self._run_node(child.value),
+                    "value": self.translator._run_node(child.value),
                     "node": ast.AnnAssign(target=ast.Name(id=name), value=child.value, annotation=child.annotation),
                 }
         return members
@@ -539,4 +544,4 @@ class BaseTranslator:
         if not (isinstance(node.target, ast.Attribute) and node.target.value.id == "self"):
             raise StopIteration
         target = node.target.attr
-        return target, self._run_node(node.value)
+        return target, self.translator._run_node(node.value)

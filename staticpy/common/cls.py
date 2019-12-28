@@ -1,8 +1,8 @@
-from .. import variable as V, expression as E, type as T
+from ..lang import variable as V, expression as E, type as T
 
 
 class Object:
-    def __init__(self, name, myname, members):
+    def __init__(self, name, members):
         self.name = name
         for name, member in members.items():
             setattr(self, name, self._get_member(member))
