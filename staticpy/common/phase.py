@@ -59,3 +59,10 @@ class LibFunction(TwoPhaseFunction):
             if kwargs:
                 raise ValueError("kwargs is invalid for cpp call")
             return E.CallFunction(function, args)
+
+
+class LibObject(LibFunction):
+    def building(self):
+        with get_block_or_create('header'):
+            M.include(self.header)
+        return E.ScopeAnalysis(self.namespace, self.function) if self.namespace else V.Name(self.function)
