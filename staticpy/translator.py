@@ -20,6 +20,7 @@ from .lang import (
 
 class ContextStack:
     annotation_map = {
+        "bool": T.Bool,
         "int": T.Int,
         "long": T.Long,
         "float": T.Float,
@@ -375,10 +376,13 @@ class BaseTranslator:
             ast.Lt: E.CompareLT,
             ast.LtE: E.CompareLE,
         }
-        op = op_mapping[type(node.ops[0])]
-        target = self._run_node(node.left)
-        value = self._run_node(node.comparators[0])
-        return op(target, value)
+        ops = [op_mapping[type(op)] for op in node.ops]
+        comparators = node.comparators.copy()
+        comparators.insert(0, node.left)
+        comparators = [self._run_node(x) for x in comparators]
+        expressions = []
+        expressions = [op(left, right) for left, op, right in zip(comparators[:-1], ops, comparators[1:])]
+        return functools.reduce(E.LogicalAnd, expressions)
 
     def Expression(self, node):
         return self._run_node(node.value)

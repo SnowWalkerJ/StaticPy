@@ -17,8 +17,10 @@ def is_building():
 def set_building():
     global __building
     __building += 1
-    yield
-    __building -= 1
+    try:
+        yield
+    finally:
+        __building -= 1
 
 
 class TwoPhaseFunction(abc.ABC):

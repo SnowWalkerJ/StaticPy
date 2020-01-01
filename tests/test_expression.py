@@ -18,3 +18,12 @@ class TestExpression(unittest.TestCase):
             x: "const" = 1
             return n + x
         self.assertEqual(fnconst(10), 11)
+
+    def test_multiple_comparation(self):
+        @jit
+        def within_one(n: float) -> bool:
+            return 0 < n <= 1
+
+        self.assertTrue(within_one(0.1))
+        self.assertFalse(within_one(-0.1))
+        self.assertFalse(within_one(1.1))
