@@ -8,7 +8,7 @@ from ..lang import macro as M
 from ..common.phase import TwoPhaseFunction, LibObject
 
 
-class cprint(TwoPhaseFunction):
+class PrintFunction(TwoPhaseFunction):
     def normal(self, *args, **kwargs):
         args = list(map(str, args))
         for name, value in kwargs.items():
@@ -16,9 +16,7 @@ class cprint(TwoPhaseFunction):
         print(", ".join(args))
 
     def building(self, *args, **kwargs):
-        with get_block_or_create('header'):
-            M.include("<iostream>")
-        expr = cout
+        expr = cout()
         init = True
         for obj in args:
             if not init:
@@ -31,8 +29,11 @@ class cprint(TwoPhaseFunction):
             expr = expr << (name + " = ") << value
             init = False
 
-        expr = expr << endl
+        expr = expr << endl()
         return expr
+
+
+cprint = PrintFunction()
 
 
 class IOStream:
