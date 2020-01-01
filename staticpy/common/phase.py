@@ -68,3 +68,19 @@ class LibObject(LibFunction):
         with get_block_or_create('header'):
             M.include(self.header)
         return E.ScopeAnalysis(self.namespace, self.function) if self.namespace else V.Name(self.function)
+
+
+class JumpHint(TwoPhaseFunction):
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+
+    def normal(self, condition):
+        return condition
+
+    def building(self, condition):
+        return E.CallFunction(V.Name(self.name), (condition, ))
+
+
+likely = JumpHint("_likely")
+unlikely = JumpHint("_unlikely")
