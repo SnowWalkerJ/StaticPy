@@ -4,10 +4,9 @@ from ..lang.common.func import get_block_or_create
 
 
 class ExternalFunction:
-    def __init__(self, name, source=None, namespace=None, is_template=False):
+    def __init__(self, name, source=None, namespace=None):
         self.name = V.Name(name) if namespace is None else E.ScopeAnalysis(namespace, name)
         self.source = source
-        self.is_template = is_template
 
     def __call__(self, *args):
         if not is_building():
@@ -15,10 +14,15 @@ class ExternalFunction:
         if self.source is not None:
             with get_block_or_create('header'):
                 M.include(self.source)
-        if self.is_template:
-            def f(*f_args):
-                func = E.TemplateInstantiate(self.name, args)
-                return E.CallFunction(func, f_args)
-            return f
-        else:
-            return E.CallFunction(self.name, args)
+        return E.CallFunction(self.name, args)
+
+    def __getitem__(self, *args):
+        def f(*f_args):
+            if not is_building():
+                raise NotImplementedError("C++ external objects not accessible in Python")
+            if self.source is not None:
+                with get_block_or_create('header'):
+                    M.include(self.source)
+            func = E.TemplateInstantiate(self.name, args)
+            return E.CallFunction(func, f_args)
+        return f
