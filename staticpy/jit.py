@@ -143,8 +143,9 @@ class JitClass(JitObject):
 
 def jit(obj):
     frame = inspect.currentframe().f_back
-    env = dict(inspect.getmembers(__builtins__))
+    env = dict(__builtins__).copy()
     env.update(frame.f_globals)
+    env.update(frame.f_locals)
     if inspect.isfunction(obj):
         return JitFunction(obj, env)
     elif inspect.isclass(obj):
