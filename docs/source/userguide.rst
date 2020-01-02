@@ -82,3 +82,85 @@ Another commonly used feature is `for`. So far only `for x in range(...)` is val
 in the short term.
 
 
+Standard Library Functions
+--------------------------
+
+Very few C++ standard library functions have Python counterparts. We don't intend to port them in StaticPy. However,
+functions in `cmath` and `iostream` are so commonly used that we consider it inconvinient missing them.
+
+iostream
+~~~~~~~~
+
+.. role:: python(code)
+   :language: python
+
+Commonly used objects `cin`, `cout`, `cerr` and `endl` are implemented in `staticpy.lib.iostream`. You are free to use them
+in both Python mode and C++ mode. One difference is that you need to call :python:`cout()` to actually get the `cout` object.
+The same applies to `cin`, `cerr` and `endl`.
+
+What's more, the `cin >> x` usage in C++ relies heavily on the overload of operator>> based on static typing.
+So the cin object doesn't function properly in Python.
+
+..  code-block:: python
+
+    from staticpy.lib.iostream import cout, endl
+    def myprint(num: float):
+        cout() << "The value is " << num << endl()
+
+
+There is an additional function we define for easy and pretty output: `cprint`.
+
+
+..  code-block:: python
+
+    from staticpy.lib.iostream import cprint
+    def myprint():
+        cprint(1.0)                      # 1.0
+        cprint(x=1.0)                    # x = 1.0
+        cprint("Hello", my_name="Jack")  # Hello, my_name = Jack
+
+
+cmath
+~~~~~
+
+Many math functions has implementations in both Python and C++. You can access them in `staticpy.lib.cmath`.
+
+..  code-block:: python
+
+    from staticpy.lib.cmath import cos
+
+    def mycos(x: float) -> float:
+        return cos(x)
+
+
+External Functions
+------------------
+
+StaticPy allows you invoke external C++ functions. These functions can't be called in pure Python mode, of course.
+But they can function properly after compilation. Use `staticpy.util.extern.ExternalFunction` to declare external
+functions.
+
+..  code-block:: python
+
+    from staticpy.util.extern import ExternalFunction
+    from staticpy import jit
+
+    cos = ExternalFunction("cos", "<cmath>", "std")
+    
+    @jit
+    def mycos(x: float) -> float:
+        # This cos function can not be called in Python mode.
+        return cos(x)
+
+An external function can also be a function template.
+
+..  code-block:: python
+
+    from staticpy.util.extern import ExternalFunction
+    from staticpy import jit
+
+    fmax = ExternalFunction("fmax", "<cmath>", "std")
+    
+    @jit
+    def mymax(x: float) -> float:
+        return fmax[float](x, 0)     # std::fmax<float>(x, 0.0)
