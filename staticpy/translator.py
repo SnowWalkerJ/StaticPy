@@ -109,15 +109,20 @@ class BaseTranslator:
             self.ctx.push(env)
             for node in nodes:
                 res = self._run_node(node)
-                if isinstance(res, B.Block):
-                    block.add_statement(S.BlockStatement(res))
-                elif isinstance(res, S.Statement):
-                    block.add_statement(res)
-                elif isinstance(res, list):
-                    for s in res:
-                        block.add_statement(s)
+                self._add_element(block, res)
             self.ctx.pop()
         return block
+
+    def _add_element(self, block, res):
+        if isinstance(res, B.Block):
+            block.add_statement(S.BlockStatement(res))
+        elif isinstance(res, S.Statement):
+            block.add_statement(res)
+        elif isinstance(res, E.Expression):
+            block.add_statement(S.ExpressionStatement(res))
+        elif isinstance(res, list):
+            for s in res:
+                self._add_element(block, s)
 
     @staticmethod
     def _try_get_doc(node):
