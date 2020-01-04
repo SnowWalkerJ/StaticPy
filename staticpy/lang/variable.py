@@ -54,6 +54,9 @@ class ArrayVariable(Variable):
     def __len__(self):
         return self.type.shape[0]
 
+    def __hash__(self):
+        return hash(str(self))
+
 
 class Name(Value):
     def __init__(self, name: str):
@@ -64,6 +67,9 @@ class Name(Value):
 
     def __eq__(self, other):
         return isinstance(other, Name) and self.name == other.name
+
+    def __hash__(self):
+        return hash(str(self))
 
 
 def variable(name, type):

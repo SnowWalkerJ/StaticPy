@@ -8,6 +8,7 @@ import sys
 from .common.logging import error
 from .common.phase import set_building
 from .session import get_session, new_session
+from .lang.common.func import get_block_or_create
 from .lang import (
     type as T,
     variable as V,
@@ -88,6 +89,14 @@ class BaseTranslator:
         with set_building():
             with self.sess:
                 return self._run_node(node)
+
+    def get_header(self):
+        with self.sess:
+            header = get_block_or_create("header")
+            with header:
+                for filename in self.sess.includes:
+                    M.include(filename)
+        return header
 
     def _run_node(self, node):
         typename = type(node).__name__
@@ -413,6 +422,7 @@ class BaseTranslator:
     def UnaryOp(self, node):
         op_map = {
             ast.USub: E.UnaryNegative,
+            ast.Not: E.UnaryNot,
         }
         op = op_map[type(node.op)]
         return op(self._run_node(node.operand))
@@ -426,8 +436,6 @@ class BaseTranslator:
             ast.Mod: E.BinaryModulo,
             ast.LShift: E.BinaryLShift,
             ast.RShift: E.BinaryRShift,
-            ast.And: E.LogicalAnd,
-            ast.Or: E.LogicalOr,
             ast.BitXor: E.BinaryXor,
             ast.BitAnd: E.BinaryAnd,
             ast.BitOr: E.BinaryOr,
@@ -437,8 +445,21 @@ class BaseTranslator:
         right = self._run_node(node.right)
         return op(left, right)
 
+    def BoolOp(self, node):
+        op_map = {
+            ast.And: E.LogicalAnd,
+            ast.Or: E.LogicalOr,
+        }
+        op = op_map[type(node.op)]
+        return functools.reduce(op, map(self._run_node, node.values))
+
     def Call(self, node):
+        builtin_magic_methods = {
+            len: lambda x: x.__len__(),
+            str: lambda x: x.__str__(),
+        }
         func = self._run_node(node.func)
+        func = builtin_magic_methods.get(func, func)
         args = tuple(self._run_node(x) for x in node.args)
         kwargs = {kw.arg: self._run_node(kw.value) for kw in node.keywords}
         if isinstance(func, V.Value):

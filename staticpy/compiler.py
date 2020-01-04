@@ -7,6 +7,7 @@ import jinja2
 
 from .session import new_session
 from .common.string import get_target_filepath
+from .common.options import get_option
 from .common import logging
 from .lang import macro as M, statement as S, block as B
 
@@ -44,7 +45,8 @@ class Compiler:
         sources = " ".join(sources)
         includes = get_include_path()
         output_filename = get_target_filepath(target_path, libname)
-        command = f"c++ -O3 -mavx2 -Wall -shared -std=c++11 -fPIC {includes} {sources} -o {output_filename}"
+        cpp_std = get_option('cpp_std', 'c++2a')
+        command = f"c++ -O3 -mavx2 -Wall -shared -std={cpp_std} -fPIC {includes} {sources} -o {output_filename}"
         if platform.system() == "Darwin":
             command += " -undefined dynamic_lookup"
         logging.info(command)

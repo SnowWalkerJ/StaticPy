@@ -1,6 +1,6 @@
 from ..common.phase import is_building
 from ..lang import expression as E, variable as V, macro as M
-from ..lang.common.func import get_block_or_create
+from ..lang.common.func import get_session
 
 
 class ExternalFunction:
@@ -12,8 +12,7 @@ class ExternalFunction:
         if not is_building():
             raise NotImplementedError("C++ external objects not accessible in Python")
         if self.source is not None:
-            with get_block_or_create('header'):
-                M.include(self.source)
+            get_session().add_include(self.source)
         return E.CallFunction(self.name, args)
 
     def __getitem__(self, *args):
@@ -21,8 +20,7 @@ class ExternalFunction:
             if not is_building():
                 raise NotImplementedError("C++ external objects not accessible in Python")
             if self.source is not None:
-                with get_block_or_create('header'):
-                    M.include(self.source)
+                get_session().add_include(self.source)
             func = E.TemplateInstantiate(self.name, args)
             return E.CallFunction(func, f_args)
         return f

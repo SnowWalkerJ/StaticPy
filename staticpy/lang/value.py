@@ -73,3 +73,6 @@ class Value(abc.ABC):
     def __getitem__(self, index):
         from .expression import GetItem
         return GetItem(self, index)
+
+    def __hash__(self):
+        return hash(str(self))

@@ -99,6 +99,7 @@ class JitModule(JitObject):
         translator = BaseTranslator(session=sess)
         module_block = translator.translate(self.source)
         sess.blocks['global'] = module_block
+        translator.get_header()
 
 
 class JitFunction(JitObject):
@@ -119,6 +120,7 @@ class JitFunction(JitObject):
         translator = BaseTranslator(self.env, session=sess)
         module_block = translator.translate(self.source)
         sess.blocks['global'] = module_block
+        translator.get_header()
 
 
 class JitClass(JitObject):
@@ -139,6 +141,7 @@ class JitClass(JitObject):
         translator = BaseTranslator(self.env, session=sess)
         module_block = translator.translate(self.source)
         sess.blocks['global'] = module_block
+        translator.get_header()
 
 
 def jit(obj):

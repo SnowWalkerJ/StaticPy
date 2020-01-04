@@ -21,7 +21,6 @@ C++ is a static-type language. Each variable has a type determined at compile ti
 StaticPy is not good at deducing the types for you. So if you wish StaticPy to
 speedup your code, you have to carefully annotate each variable with proper type.
 
-
 Using StaticPy
 --------------
 

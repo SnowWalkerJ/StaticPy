@@ -2,8 +2,7 @@ class Session:
     def __init__(self):
         self.blocks = {}
         self.block_stack = []
-        self.functions = []
-        self.classes = []
+        self.includes = set()
         self.array_types = {}
 
     @property
@@ -15,6 +14,9 @@ class Session:
 
     def pop_block(self):
         return self.block_stack.pop()
+
+    def add_include(self, filename):
+        self.includes.add(filename)
 
     def __enter__(self):
         global _sessions

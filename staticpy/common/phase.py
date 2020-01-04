@@ -3,7 +3,7 @@ from contextlib import contextmanager
 import inspect
 import typing
 
-from ..lang.common.func import get_block_or_create
+from ..lang.common.func import get_session
 from ..lang import expression as E, variable as V, macro as M
 
 __building = 0
@@ -52,8 +52,7 @@ class LibFunction(TwoPhaseFunction):
         return self.pyfunction(*args, **kwargs)
 
     def building(self, *args, **kwargs):
-        with get_block_or_create('header'):
-            M.include(self.header)
+        get_session().add_include(self.header)
         if hasattr(self.function, "__call__"):
             return self.function(*args, **kwargs)
         elif isinstance(self.function, str):
@@ -65,8 +64,7 @@ class LibFunction(TwoPhaseFunction):
 
 class LibObject(LibFunction):
     def building(self):
-        with get_block_or_create('header'):
-            M.include(self.header)
+        get_session().add_include(self.header)
         return E.ScopeAnalysis(self.namespace, self.function) if self.namespace else V.Name(self.function)
 
 

@@ -27,3 +27,11 @@ class TestExpression(unittest.TestCase):
         self.assertTrue(within_one(0.1))
         self.assertFalse(within_one(-0.1))
         self.assertFalse(within_one(1.1))
+
+    def test_string(self):
+        @jit
+        def startswith_underline(x: str) -> bool:
+            return x.startswith("_")
+
+        self.assertFalse(startswith_underline("this"))
+        self.assertTrue(startswith_underline("_this"))

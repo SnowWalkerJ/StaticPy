@@ -1,9 +1,11 @@
 Introduction
 ============
 
-StaticPy is a Python-to-C++ translater.
+StaticPy is a Python-to-C++ translater. It is designed in a way that code can be run in both Python and C++ mode. That is,
+StaticPy valid code should be able to not only be translated to C++ and compiled, but
+also run by Python interpreter directly.
 
-It supports a subset of Python grammar. It analyzes Python bytecode of a function and translates it to C++.
+It supports a subset of Python grammar. It analyzes Python AST and translates it to C++.
 You can write a C++ template and embed the generated code in your template to form a complete code.
 
 Optionally, it can bind the C++ code back to Python using Pybind11 to grant super speed to Python.

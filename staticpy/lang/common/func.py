@@ -19,15 +19,15 @@ def auto_add(wrapped):
 
 
 def require_header(headers: typing.List[str]):
-    from .. import macro as M
-
     def decorator(wrapped):
 
         @functools.wraps(wrapped)
         def func(*args, **kwargs):
-            with get_block_or_create('header'):
-                for header in headers:
-                    M.include(header)
+            sess = get_session()
+            if isinstance(headers, str):
+                headers = [headers]
+            for header in headers:
+                sess.add_include(header)
             return wrapped(*args, **kwargs)
         return func
     return decorator
