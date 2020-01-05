@@ -1,4 +1,7 @@
-_options = {}
+_options = {
+    "cpp_std": "c++11",
+    "optimize": "3",
+}
 
 
 def set_option(name, value):

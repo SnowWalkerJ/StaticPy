@@ -42,7 +42,7 @@ class TwoPhaseFunction(abc.ABC):
 class LibFunction(TwoPhaseFunction):
     def __init__(self, header, pyfunction, function, namespace=None):
         self.header = header
-        self.function = function
+        self.function = V.Name(function) if isinstance(function, str) else function
         self.pyfunction = pyfunction
         self.namespace = namespace
         if not (hasattr(function, "__call__") or isinstance(function, str)):
@@ -53,13 +53,20 @@ class LibFunction(TwoPhaseFunction):
 
     def building(self, *args, **kwargs):
         get_session().add_include(self.header)
-        if hasattr(self.function, "__call__"):
+        if not isinstance(self.function, V.Value):
             return self.function(*args, **kwargs)
-        elif isinstance(self.function, str):
-            function = E.ScopeAnalysis(self.namespace, self.function) if self.namespace else V.Name(self.function)
+        else:
+            function = E.ScopeAnalysis(self.namespace, self.function) if self.namespace else self.function
             if kwargs:
                 raise ValueError("kwargs is invalid for cpp call")
             return E.CallFunction(function, args)
+
+    def __getitem__(self, *args):
+        if not callable(self.function):
+            function = E.TemplateInstantiate(self.function, args)
+            return LibFunction(self.header, self.pyfunction, function, self.namespace)
+        else:
+            raise NotImplementedError
 
 
 class LibObject(LibFunction):
