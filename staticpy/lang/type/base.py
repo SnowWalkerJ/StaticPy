@@ -22,10 +22,6 @@ class TypeBase(ABC):
     def suffix(self):
         pass
 
-    def instantiate(self):
-        from .. import variable as V
-        return V.Variable
-
     def compatible(self, type):
         return False
 

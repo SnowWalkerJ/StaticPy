@@ -2,9 +2,38 @@ import abc
 
 
 class Value(abc.ABC):
+    def __init__(self, type=None):
+        self.type = type
+        if hasattr(type, "v__init__"):
+            type.v__init__(self)
+
     @abc.abstractmethod
     def __str__(self):
         pass
+
+    def __getattr__(self, key):
+        try:
+            return super().__getattribute__(key)
+        except AttributeError:
+            return getattr(self.type, "v_" + key)(self)
+
+    def __call__(self, *args, **kwargs):
+        from .expression import CallFunction
+        if hasattr(self.type, "v__call__"):
+            return self.type.v__call__(self, *args, **kwargs)
+        else:
+            return CallFunction(self, *args)
+
+    def __getitem__(self, index):
+        from .expression import GetItem
+        if hasattr(self.type, "v__getitem__"):
+            return self.type.v__getitem__(self, index)
+        else:
+            return GetItem(self, index)
+
+    def __len__(self):
+        if hasattr(self.type, "v__len__"):
+            return self.type.v__len__(self)
 
     def astype(self, type):
         from . import expression as E
@@ -65,14 +94,6 @@ class Value(abc.ABC):
     def __rshift__(self, other):
         from .expression import BinaryRShift
         return BinaryRShift(self, other)
-
-    def __call__(self, *args):
-        from .expression import CallFunction
-        return CallFunction(self, *args)
-
-    def __getitem__(self, index):
-        from .expression import GetItem
-        return GetItem(self, index)
 
     def __hash__(self):
         return hash(str(self))

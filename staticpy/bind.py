@@ -69,15 +69,15 @@ class BindObject(ABC):
                     if isinstance(t, T.ArrayType):
                         buffer_t = T.OtherType(E.ScopeAnalysis(V.Name("py"), V.Name("buffer")))
                         wrapped_inputs.append((buffer_t, n))
-                        v_in = V.variable(n, buffer_t)
-                        v_out = V.variable("_" + n, t)
-                        buffer_info = V.variable(f"buffer_info_{n}", auto_t)
+                        v_in = V.Variable(n, buffer_t)
+                        v_out = V.Variable("_" + n, t)
+                        buffer_info = V.Variable(f"buffer_info_{n}", auto_t)
                         S.declare(buffer_info, E.CallFunction(E.GetAttr(v_in, "request"), ()))
                         S.declare(v_out, E.CallFunction(t.cname(), (buffer_info, )))
                         params.append(v_out)
                     else:
                         wrapped_inputs.append((t, n))
-                        params.append(V.variable(n, t))
+                        params.append(V.Variable(n, t))
                 S.returns(E.CallFunction(block.name, tuple(params)))
             wrapped_func = B.Function(block.name, wrapped_inputs, block.output, wrapped_func.statements, block.doc)
             m = M.IfDefMacro("PYBIND")
@@ -198,7 +198,7 @@ class PyBindClass(BindObject):
 
     def bind(self, parent, namespace=None):
         child_namespace = E.ScopeAnalysis(namespace, self.name) if namespace else V.Name(self.name)
-        c = V.variable("c", T.AutoType)
+        c = V.Variable("c", T.AutoType)
         S.declare(c, E.CallFunction(E.TemplateInstantiate(E.ScopeAnalysis("py", "class_"), (V.Name(self.name), )), (parent, self.name)))
         public_block = self.block.statements[1].block
         for member in public_block.statements:

@@ -31,6 +31,7 @@ def unary_expression(name, op, level=None):
 
         def __init__(self, item):
             self.item = self.add_bracket(cast_value_to_expression(item))
+            super().__init__()
 
         def __repr__(self):
             return f"{self.name}({self.item})"
@@ -54,6 +55,7 @@ def binary_expression(name, op, level=None):
         def __init__(self, item1, item2):
             self.item1 = self.add_bracket(cast_value_to_expression(item1))
             self.item2 = self.add_bracket(cast_value_to_expression(item2))
+            super().__init__()
 
         def __repr__(self):
             return f"{self.name}({self.item1}, {self.item2})"
@@ -77,6 +79,7 @@ def compare_expression(name, op, level=None):
         def __init__(self, item1, item2):
             self.item1 = self.add_bracket(cast_value_to_expression(item1))
             self.item2 = self.add_bracket(cast_value_to_expression(item2))
+            super().__init__()
 
         def __repr__(self):
             return f"{self.item1} {self.op} {self.item2}"
@@ -118,6 +121,8 @@ class AddressOf(OpExpression):
 
     def __init__(self, item):
         self.item = cast_value_to_expression(item)
+        type = self.item.type.ptr() if self.item.type is not None else None
+        super().__init__(type)
 
     def __repr__(self):
         return f"{self.name}({self.item})"
@@ -134,6 +139,7 @@ class ScopeAnalysis(OpExpression):
     def __init__(self, item1, item2):
         self.item1 = item1
         self.item2 = item2
+        super().__init__()
 
     def __repr__(self):
         return f"{self.name}({self.item1}, {self.item2})"
@@ -149,16 +155,17 @@ class IIf(OpExpression):
         self.condition = self.add_bracket(cast_value_to_expression(condition))
         self.value_if_true = self.add_bracket(cast_value_to_expression(value_if_true))
         self.value_if_false = self.add_bracket(cast_value_to_expression(value_if_false))
+        super().__init__()
 
     def __str__(self):
         return f"{self.condition} ? {self.value_if_true} : {self.value_if_false}"
 
 
 class CallFunction(Expression):
-    def __init__(self, func, args):
+    def __init__(self, func, args, type=None):
         self.func = func
         self.args = tuple(map(cast_value_to_expression, args))
-        super().__init__()
+        super().__init__(type)
 
     def __str__(self):
         name = self.func
@@ -170,6 +177,7 @@ class TemplateInstantiate(Expression):
     def __init__(self, name, args):
         self.name = name
         self.args = args
+        super().__init__()
 
     def __str__(self):
         args = "<" + stringify_arguments(self.args) + ">"
@@ -179,7 +187,7 @@ class TemplateInstantiate(Expression):
 class Const(Expression):
     def __init__(self, value):
         self.value = value
-        self.type = self.infer_type(value)
+        super().__init__(self.infer_type(value))
 
     @staticmethod
     def infer_type(value):
@@ -207,6 +215,7 @@ class Const(Expression):
 class Var(Expression):
     def __init__(self, variable):
         self.variable = variable
+        super().__init__(variable.type)
 
     def __str__(self):
         return str(self.variable)
@@ -219,7 +228,7 @@ class GetAttr(Expression):
         self.obj = obj
         self.attr = attr
         if symbol is None:
-            if hasattr(obj, "type") and isinstance(getattr(obj, "type"), T.PointerType):
+            if hasattr(obj, "type") and isinstance(obj.type, T.PointerType):
                 symbol = "->"
             else:
                 symbol = "."
@@ -235,6 +244,7 @@ class GetItem(Expression):
     def __init__(self, obj, index):
         self.obj = obj
         self.index = index
+        super().__init__()
 
     def __str__(self):
         return f"{self.obj}[{self.index}]"
@@ -245,10 +255,10 @@ class StaticCast(Expression):
 
     def __init__(self, expr: Expression, astype):
         self.expr = cast_value_to_expression(expr)
-        self.astype = astype
+        super().__init__(astype)
 
     def __str__(self):
-        return f"static_cast<{self.astype}>({self.expr})"
+        return f"static_cast<{self.type}>({self.expr})"
 
 
 class Cast(Expression):
@@ -256,10 +266,10 @@ class Cast(Expression):
 
     def __init__(self, expr: Expression, astype):
         self.expr = cast_value_to_expression(expr)
-        self.astype = astype
+        super().__init__(astype)
 
     def __str__(self):
-        return f"({self.astype})({self.expr})"
+        return f"({self.type})({self.expr})"
 
 
 def compare_op(opname):

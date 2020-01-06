@@ -4,6 +4,7 @@ import unittest
 from staticpy import jit, Int
 from staticpy.lib import cmath
 from staticpy.util.extern import ExternalFunction
+from staticpy.testing import enable_if_cpp_std
 
 
 class TestLib(unittest.TestCase):
@@ -22,3 +23,12 @@ class TestLib(unittest.TestCase):
             return cos(x)
 
         self.assertAlmostEqual(mycos2(0.1), math.cos(0.1))
+
+    @enable_if_cpp_std("20")
+    def test_string(self):
+        @jit
+        def startswith_underline(x: str) -> bool:
+            return x.startswith("_")
+
+        self.assertFalse(startswith_underline("this"))
+        self.assertTrue(startswith_underline("_this"))

@@ -17,7 +17,7 @@ class Object:
             return obj
 
     def dynamic_attribute(self, attr):
-        return E.GetAttr(V.variable('this', T.PointerType(T.OtherType(self.name))), attr)
+        return E.GetAttr(V.Variable('this', T.PointerType(T.OtherType(self.name))), attr)
 
     def static_attribute(self, attr):
         return E.ScopeAnalysis(V.Name(self.name), V.Name(attr))

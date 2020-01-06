@@ -5,7 +5,7 @@ from . import expression as E
 class Variable(Value):
     def __init__(self, name: str, type):
         self.name = name
-        self.type = type
+        super().__init__(type)
 
     def __str__(self):
         return str(self.name)
@@ -61,6 +61,7 @@ class ArrayVariable(Variable):
 class Name(Value):
     def __init__(self, name: str):
         self.name = name
+        super().__init__()
 
     def __str__(self):
         return str(self.name)
@@ -70,7 +71,3 @@ class Name(Value):
 
     def __hash__(self):
         return hash(str(self))
-
-
-def variable(name, type):
-    return type.instantiate()(name, type)

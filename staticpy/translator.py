@@ -345,7 +345,7 @@ class BaseTranslator:
             target = value
             ret = S.SingleLineComment(f"const {varname} = {value.value}")
         else:
-            target = V.variable(varname, type)
+            target = V.Variable(varname, type)
             ret = S.VariableDeclaration(target, value)
         self.ctx[varname] = target
         return ret
@@ -482,7 +482,7 @@ class BaseTranslator:
 
     # ============= others =============
     def arg(self, node):
-        return V.variable(node.arg, self._run_node(node.annotation))
+        return V.Variable(node.arg, self._run_node(node.annotation))
 
 
 class ClassBuilder:
