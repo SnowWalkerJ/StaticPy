@@ -26,7 +26,7 @@ class CppTemplate(Template):
 {{header}}
 #include <array.h>
 
-{{global}}
+{{main}}
 
 {{footer}}"""
 

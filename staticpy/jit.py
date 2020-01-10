@@ -78,7 +78,7 @@ class JitObject:
         with sess:
             with get_block_or_create("header"):
                 M.defineM("PYBIND")
-            block = get_block_or_create("global")
+            block = get_block_or_create("main")
         PyBindModule(self.name, block).setup(sess)
 
     def _compile(self, sess):
@@ -98,7 +98,7 @@ class JitModule(JitObject):
     def _translate(self, sess):
         translator = BaseTranslator(session=sess)
         module_block = translator.translate(self.source)
-        sess.blocks['global'] = module_block
+        sess.blocks["main"] = module_block
         translator.get_header()
 
 
@@ -119,7 +119,7 @@ class JitFunction(JitObject):
     def _translate(self, sess):
         translator = BaseTranslator(self.env, session=sess)
         module_block = translator.translate(self.source)
-        sess.blocks['global'] = module_block
+        sess.blocks["main"] = module_block
         translator.get_header()
 
 
@@ -140,7 +140,7 @@ class JitClass(JitObject):
     def _translate(self, sess):
         translator = BaseTranslator(self.env, session=sess)
         module_block = translator.translate(self.source)
-        sess.blocks['global'] = module_block
+        sess.blocks["main"] = module_block
         translator.get_header()
 
 

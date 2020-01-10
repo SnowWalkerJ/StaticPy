@@ -471,7 +471,7 @@ class BaseTranslator:
         return tuple(map(self._run_node, node.elts))
 
     def List(self, node):
-        return list(map(self._run_node, node.elts))
+        return E.initializer_list(*map(self._run_node, node.elts))
 
     def IfExp(self, node):
         return E.IIf(

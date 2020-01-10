@@ -272,6 +272,16 @@ class Cast(Expression):
         return f"({self.type})({self.expr})"
 
 
+class initializer_list(Expression):
+    level = 19
+
+    def __init__(self, *args):
+        self.args = args
+
+    def __str__(self):
+        return "{" + ", ".join(map(str, self.args)) + "}"
+
+
 def compare_op(opname):
     mapping = {
         '>': CompareGT,
