@@ -10,6 +10,10 @@ class Variable(Value):
     def __str__(self):
         return str(self.name)
 
+    def assign(self, value):
+        from . import statement as S
+        S.assign(self, E.cast_value_to_expression(value))
+
 
 class ArrayVariable(Variable):
     class ShapeProxy:
