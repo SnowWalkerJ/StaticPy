@@ -26,14 +26,18 @@ class TypeBase(ABC):
         return False
 
     def __str__(self):
-        return " ".join([str(self.cname()), self.prefix()])
+        name = str(self.cname())
+        prefix = str(self.prefix())
+        if prefix:
+            name = name + " " + prefix
+        return name
 
     def declare(self, name, init=None, qualifiers=[]):
         qualifiers = (" ".join(qualifiers) + " ") if qualifiers else ""
         if init is None:
-            return f"{qualifiers}{self}{name};"
+            return f"{qualifiers}{self} {name};"
         else:
-            return f"{qualifiers}{self}{name} = {init};"
+            return f"{qualifiers}{self} {name} = {init};"
 
     def wrapped(self):
         return self
@@ -63,9 +67,9 @@ class PointerType(TypeBase):
     def declare(self, name, init=None, qualifiers=[]):
         qualifiers = " ".join(qualifiers) + " " if qualifiers else ""
         if init is None:
-            return f"{qualifiers}{self}{name} = nullptr;"
+            return f"{qualifiers}{self} {name} = nullptr;"
         else:
-            return f"{qualifiers}{self}{name} = {init};"
+            return f"{qualifiers}{self} {name} = {init};"
 
 
 class ReferenceType(TypeBase):
@@ -73,10 +77,10 @@ class ReferenceType(TypeBase):
         self.base = base
 
     def cname(self):
-        return str(self.base.cname()) + "&"
+        return str(self.base.cname())
 
     def prefix(self):
-        return ""
+        return "&"
 
     def suffix(self):
         return ""
@@ -86,4 +90,4 @@ class ReferenceType(TypeBase):
             raise ValueError("Can't declare a reference without target")
         else:
             qualifiers = " ".join(qualifiers) + " " if qualifiers else ""
-            return f"{qualifiers}{self}{name} = {init};"
+            return f"{qualifiers}{self} {name} = {init};"

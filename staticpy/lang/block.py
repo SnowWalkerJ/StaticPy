@@ -87,11 +87,11 @@ class For(Scope):
         step = self.step
         steping = f"{var} += {step}"
         if step == 1:
-            steping = f"{var}++"
+            steping = f"++{var}"
         elif step == -1:
-            steping = f"{var}--"
+            steping = f"--{var}"
         if self.declare:
-            return f"for({var.type}{var} = {start}; {var} < {stop}; {steping}) {{"
+            return f"for({var.type} {var} = {start}; {var} < {stop}; {steping}) {{"
         else:
             return f"for({var} = {start}; {var} < {stop}; {steping}) {{"
 
@@ -118,7 +118,7 @@ class Function(Scope):
         qualifier = "static " if self.static else ""
         ret_type = str(self.output)
         args = ", ".join(f"{type.cname()} {type.prefix()}{name}" for type, name in self.inputs)
-        return f"{qualifier}{ret_type}{self.name}({args}) {{"
+        return f"{qualifier}{ret_type} {self.name}({args}) {{"
 
 
 class Class(Scope):
