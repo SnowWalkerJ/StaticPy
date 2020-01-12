@@ -6,9 +6,10 @@ import sys
 from .template import CppTemplate
 from .bind import PyBindFunction, PyBindModule
 from .common.options import get_option
+from .common.phase import TwoPhaseFunction
 from .compiler import Compiler
 from .translator import BaseTranslator
-from .session import new_session
+from .session import new_session, get_session
 from .common.string import get_target_filepath
 from .lang.common import get_block_or_create
 from .lang import (
@@ -21,11 +22,12 @@ from .lang import (
 )
 
 
-class JitObject:
+class JitObject(TwoPhaseFunction):
     def __init__(self, name, obj, env={}):
-        self.name = name
+        self.name = name or obj.__name__
         self.obj = obj
         self.env = env.copy()
+        self.env[self.name] = V.Name(self.name)
         self.source = self._get_source(obj)
         self._signatures = []
         self._compiled = False
@@ -34,7 +36,8 @@ class JitObject:
 
     def compile(self):
         sess = new_session()
-        self._translate(sess)
+        block = self._translate(sess)
+        self._assemble(sess, block)
         self._bind(sess)
         self._compile(sess)
 
@@ -49,8 +52,26 @@ class JitObject:
         finally:
             del sys.path[0]
 
+    def building(self, *args):
+        get_session().add_definition(self)
+        return E.CallFunction(self.name, args)
+
+    def normal(self, *args):
+        if not self._compiled:
+            if get_option("force_compile", False) or self._need_update():
+                self.compile()
+            self.load()
+            self._compiled = True
+            self.__doc__ = self._compiled_obj.__doc__
+        return self._compiled_obj(*args)
+
     def _translate(self, sess):
-        pass
+        translator = BaseTranslator(self.env, session=sess)
+        return translator.translate(self.source)
+
+    def _assemble(self, sess, block):
+        sess.blocks["main"] = block
+        sess.finalize()
 
     @staticmethod
     def _get_source(obj):
@@ -94,62 +115,9 @@ class JitObject:
         return source_mtime > target_mtime
 
 
-class JitModule(JitObject):
-    def _translate(self, sess):
-        translator = BaseTranslator(session=sess)
-        module_block = translator.translate(self.source)
-        sess.blocks["main"] = module_block
-        translator.get_header()
-
-
-class JitFunction(JitObject):
-    def __init__(self, func, env={}):
-        super().__init__(func.__name__, func, env)
-        self.env[func.__name__] = V.Name(func.__name__)
-
-    def __call__(self, *args):
-        if not self._compiled:
-            if get_option("force_compile", False) or self._need_update():
-                self.compile()
-            self.load()
-            self._compiled = True
-            self.__doc__ = self._compiled_obj.__doc__
-        return self._compiled_obj(*args)
-
-    def _translate(self, sess):
-        translator = BaseTranslator(self.env, session=sess)
-        module_block = translator.translate(self.source)
-        sess.blocks["main"] = module_block
-        translator.get_header()
-
-
-class JitClass(JitObject):
-    def __init__(self, cls, env={}):
-        super().__init__(cls.__name__, cls, env)
-        self.env[cls.__name__] = V.Name(cls.__name__)
-
-    def __call__(self, *args):
-        if not self._compiled:
-            if get_option("force_compile", False) or self._need_update():
-                self.compile()
-            self.load()
-            self._compiled = True
-            self.__doc__ = self._compiled_obj.__doc__
-        return self._compiled_obj(*args)
-
-    def _translate(self, sess):
-        translator = BaseTranslator(self.env, session=sess)
-        module_block = translator.translate(self.source)
-        sess.blocks["main"] = module_block
-        translator.get_header()
-
-
 def jit(obj):
     frame = inspect.currentframe().f_back
     env = dict(__builtins__).copy()
     env.update(frame.f_globals)
     env.update(frame.f_locals)
-    if inspect.isfunction(obj):
-        return JitFunction(obj, env)
-    elif inspect.isclass(obj):
-        return JitClass(obj, env)
+    return JitObject(obj.__name__, obj, env)

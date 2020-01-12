@@ -30,9 +30,10 @@ class PrimitiveType(TypeBase):
         shape = tuple(s if isinstance(s, int) else ... for s in shape)
         session = get_session()
         key = (self, shape, is_continuous)
-        if key not in session.array_types:
-            session.array_types[key] = ArrayType(self, shape, is_continuous)
-        return session.array_types[key]
+        return ArrayType(self, shape, is_continuous)
+        # if key not in session.array_types:
+        #     session.array_types[key] = ArrayType(self, shape, is_continuous)
+        # return session.array_types[key]
 
     def cname(self):
         return self.ctype

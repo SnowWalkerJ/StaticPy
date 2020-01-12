@@ -6,7 +6,7 @@ import os
 import sys
 
 from .common.options import get_option
-from .jit import JitModule
+from .jit import JitObject
 
 
 class StaticPyFinder(MetaPathFinder):
@@ -27,7 +27,7 @@ class StaticPyFinder(MetaPathFinder):
 class StaticPyLoader(Loader):
     def create_module(self, spec):
         name = spec.name.split(".")[-1]
-        jit = JitModule(name, spec.origin, dict(inspect.getmembers(__builtins__)))
+        jit = JitObject(name, spec.origin, dict(inspect.getmembers(__builtins__)))
         if get_option("force_compile", False) or jit._need_update():
             jit.compile()
         self.wrapped_spec = spec_from_file_location(name, jit._target_path)

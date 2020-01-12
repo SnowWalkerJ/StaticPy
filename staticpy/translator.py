@@ -90,14 +90,6 @@ class BaseTranslator:
             with self.sess:
                 return self._run_node(node)
 
-    def get_header(self):
-        with self.sess:
-            header = get_block_or_create("header")
-            with header:
-                for filename in self.sess.includes:
-                    M.include(filename)
-        return header
-
     def _run_node(self, node):
         typename = type(node).__name__
         fn = getattr(self, typename)
