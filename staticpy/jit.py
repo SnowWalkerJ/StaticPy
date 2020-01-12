@@ -28,7 +28,6 @@ class JitObject(TwoPhaseFunction):
         self.obj = obj
         self.env = env.copy()
         self.env[self.name] = V.Name(self.name)
-        self.source = self._get_source(obj)
         self._signatures = []
         self._compiled = False
         self._compiled_obj = None
@@ -36,8 +35,8 @@ class JitObject(TwoPhaseFunction):
 
     def compile(self):
         sess = new_session()
-        block = self._translate(sess)
-        self._assemble(sess, block)
+        self._add_definition(sess)
+        sess.finalize()
         self._bind(sess)
         self._compile(sess)
 
@@ -53,7 +52,7 @@ class JitObject(TwoPhaseFunction):
             del sys.path[0]
 
     def building(self, *args):
-        get_session().add_definition(self)
+        self._add_definition(get_session())
         return E.CallFunction(self.name, args)
 
     def normal(self, *args):
@@ -65,13 +64,23 @@ class JitObject(TwoPhaseFunction):
             self.__doc__ = self._compiled_obj.__doc__
         return self._compiled_obj(*args)
 
+    def declare(self):
+        declarations = []
+        for stmt in self._block.statements:
+            if isinstance(stmt, S.BlockStatement):
+                block = stmt.block
+                declarations.append(S.SimpleStatement(block.prefix()[:-2] + ";"))
+        return declarations
+
+    def _add_definition(self, sess):
+        sess.add_definition(self)
+        self._translate(sess)
+
     def _translate(self, sess):
         translator = BaseTranslator(self.env, session=sess)
-        return translator.translate(self.source)
-
-    def _assemble(self, sess, block):
-        sess.blocks["main"] = block
-        sess.finalize()
+        source = self._get_source(self.obj)
+        self._block = translator.translate(source)
+        return self._block
 
     @staticmethod
     def _get_source(obj):
@@ -112,7 +121,7 @@ class JitObject(TwoPhaseFunction):
             return True
         target_mtime = os.path.getmtime(self._target_path)
         source_mtime = os.path.getmtime(self._source_path)
-        return source_mtime > target_mtime
+        return source_mtime > target_mtime    
 
 
 def jit(obj):

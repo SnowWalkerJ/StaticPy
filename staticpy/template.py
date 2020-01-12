@@ -26,6 +26,8 @@ class CppTemplate(Template):
 {{header}}
 #include <array.h>
 
+{{declaration}}
+
 {{main}}
 
 {{footer}}"""

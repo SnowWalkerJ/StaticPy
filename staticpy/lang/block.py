@@ -14,6 +14,7 @@ class Block:
     def __enter__(self):
         from ..session import get_session
         get_session().push_block(self)
+        return self
 
     def __exit__(self, *args):
         from ..session import get_session

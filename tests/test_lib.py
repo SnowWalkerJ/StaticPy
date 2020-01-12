@@ -24,6 +24,17 @@ class TestLib(unittest.TestCase):
 
         self.assertAlmostEqual(mycos2(0.1), math.cos(0.1))
 
+    def test_reference_to_jit_function(self):
+        @jit
+        def callee() -> int:
+            return 1
+
+        @jit
+        def caller() -> int:
+            return callee()
+
+        self.assertEqual(caller(), 1)
+
     @enable_if_cpp_std("20")
     def test_string(self):
         @jit

@@ -25,13 +25,21 @@ class Session:
         from .lang.common.func import get_block_or_create
         from .lang import macro as M, statement as S
         with self:
-            header = get_block_or_create("header")
-            with header:
+            with get_block_or_create("header"):
                 for filename in self.includes:
                     M.include(filename)
-            for obj in self.definitions:
-                block = obj._translate(self)
-                header.add_statement(S.BlockStatement(block))
+            with get_block_or_create("declaration") as declaration:
+                for obj in self.definitions:
+                    for stmt in obj.declare():
+                        declaration.add_statement(stmt)
+            main = get_block_or_create("main")
+            with main:
+                for obj in self.definitions:
+                    block = obj._translate(self)
+                    for stmt in block.statements:
+                        if isinstance(stmt, S.BlockStatement):
+                            stmt.block.parent = main
+                        main.add_statement(stmt)
 
     def __enter__(self):
         global _sessions
