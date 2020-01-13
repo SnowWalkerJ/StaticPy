@@ -73,6 +73,8 @@ class Else(Scope):
 
 
 class For(Scope):
+    _loop_var_counter = 0
+
     def __init__(self, variable, start, stop, step, statements, declare=False):
         self.variable = variable
         self.start = start
@@ -95,6 +97,10 @@ class For(Scope):
             return f"for({var.type} {var} = {start}; {var} < {stop}; {steping}) {{"
         else:
             return f"for({var} = {start}; {var} < {stop}; {steping}) {{"
+
+    def __enter__(self):
+        super().__enter__()
+        return self.variable
 
 
 class While(Scope):
@@ -161,3 +167,18 @@ class Constructor(Function):
         else:
             initialization = ""
         return f"{name_args} {initialization} {{"
+
+
+def arange(*args):
+    from . import variable as V, type as T
+    if len(args) == 1:
+        start, stop, step = 0, args[0], 1
+    elif len(args) == 2:
+        start, stop, step = args[0], args[1], 1
+    else:
+        start, stop, step = args
+    n = For._loop_var_counter
+    variable = V.Variable(f"_i{n}", T.Int)
+    block = For(variable, start, stop, step, None, True)
+    For._loop_var_counter += 1
+    return block

@@ -227,6 +227,20 @@ class BaseTranslator:
         block.initialization_list = initialization_list
         return block
 
+    def With(self, node):
+        ctx = []
+        env = {}
+        for item in node.items:
+            context = self._run_node(item.context_expr)
+            val = context.__enter__()
+            ctx.append(context)
+            if item.optional_vars is not None:
+                env[item.optional_vars.id] = val
+        block = self._run_nodes(node.body, env)
+        for context in ctx:
+            context.__exit__()
+        return block
+
     def If(self, node):
         condition = self._run_node(node.test)
         block = self._run_nodes(node.body, block=B.If(condition, None))
