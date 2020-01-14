@@ -15,7 +15,11 @@ class Value(abc.ABC):
         try:
             return super().__getattribute__(key)
         except AttributeError:
-            return getattr(self.type, "v_" + key)(self)
+            name = "v_" + key
+            if "type" in self.__dict__ and self.type is not None and name in self.type.__dict__:
+                return getattr(self.type, "v_" + key)(self)
+            else:
+                raise
 
     def __call__(self, *args, **kwargs):
         from .expression import CallFunction
