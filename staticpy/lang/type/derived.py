@@ -99,26 +99,41 @@ def method_wrapper(fn):
 
 
 class UserDefinedClassType(DerivedType):
-    def __init__(self, name, namespace, members):
+    def __init__(self, name, namespace, attributes={}, methods={}):
         self.name = name
-        self.members = members
+        self.methods = methods
+        self.attributes = attributes
         self.namespace = namespace
-        for pyname, cname in members.items():
+        for pyname, cname in methods.items():
             prefix = "v" if pyname[:2] == "__" else "v_"
-            setattr(self, prefix + pyname, self.make_member(pyname, cname))
+            setattr(self, prefix + pyname, self.make_method(pyname, cname))
+        for pyname, cname in attributes.items():
+            prefix = "v_"
+            setattr(self, prefix + pyname, self.make_attribute(pyname, cname))
 
     @staticmethod
-    def make_member(pyname, member):
+    def make_method(pyname, method):
         from .. import expression as E, variable as V
 
-        if isinstance(member, str):
+        if isinstance(method, str):
             def f(self, *args):
-                return E.CallFunction(E.GetAttr(self.name, member), args)
+                return E.CallFunction(E.GetAttr(self.name, method), args)
         else:
             def f(self, *args):
-                return member(self, *args)
+                return method(self, *args)
 
         return f if pyname[:2] == "__" else method_wrapper(f)
+
+    @staticmethod
+    def make_attribute(pyname, attr):
+        from .. import expression as E, variable as V
+
+        if isinstance(attr, str):
+            def f(self):
+                return E.GetAttr(self.name, attr)
+        else:
+            f = attr
+        return f
 
     def cname(self):
         from .. import expression as E, variable as V
@@ -132,15 +147,15 @@ class UserDefinedClassType(DerivedType):
 
     def __getitem__(self, *args):
         from .. import expression as E
-        return UserDefinedClassType(E.TemplateInstantiate(self.name, args), self.members, self.namespace)
+        return UserDefinedClassType(E.TemplateInstantiate(self.name, args), self.namespace, self.attributes, self.methods)
 
 
 class StringType(UserDefinedClassType):
     def __init__(self):
         name = "string"
         namespace = "std"
-        members = {"__len__": "size", "startswith": "starts_with", "endswith": "ends_with"}
-        super().__init__(name, namespace, members)
+        methods = {"__len__": "size", "startswith": "starts_with", "endswith": "ends_with"}
+        super().__init__(name, namespace, methods=methods)
 
 
 AutoType = OtherType(Name("auto"))
